@@ -2,16 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { notificarConfirmacionInscripcion, notificarNuevaSolicitudAAdmin } from "@/lib/notificaciones";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
+
+const CARPETA_UPLOADS = path.join(process.cwd(), "public", "uploads", "inscripcion");
+
+// Los campos tipo ARCHIVO llegan en el FormData con el prefijo "archivo_"
+// (ej. "archivo_comprobantePago"), separados de las demás respuestas para
+// no forzar todo el body a multipart innecesariamente en el resto de los casos.
+async function guardarArchivoAdjunto(archivo: File): Promise<string> {
+  await mkdir(CARPETA_UPLOADS, { recursive: true });
+  const extension = path.extname(archivo.name) || "";
+  const nombreArchivo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${extension}`;
+  const bytes = Buffer.from(await archivo.arrayBuffer());
+  await writeFile(path.join(CARPETA_UPLOADS, nombreArchivo), bytes);
+  return `/uploads/inscripcion/${nombreArchivo}`;
+}
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { formularioVersionId, respuestas } = body as {
-    formularioVersionId?: string;
-    respuestas?: Record<string, unknown>;
-  };
+  const formData = await req.formData();
+  const formularioVersionId = formData.get("formularioVersionId");
+  const respuestasRaw = formData.get("respuestas");
 
-  if (!formularioVersionId || !respuestas) {
+  if (typeof formularioVersionId !== "string" || typeof respuestasRaw !== "string") {
     return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+  }
+
+  let respuestas: Record<string, unknown>;
+  try {
+    respuestas = JSON.parse(respuestasRaw);
+  } catch {
+    return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+  }
+
+  // Archivos adjuntos: se guardan y su URL reemplaza/completa la respuesta
+  // de esa pregunta, como si el valor hubiera llegado en el JSON.
+  for (const [key, value] of formData.entries()) {
+    if (key.startsWith("archivo_") && value instanceof File && value.size > 0) {
+      const clave = key.slice("archivo_".length);
+      respuestas[clave] = await guardarArchivoAdjunto(value);
+    }
   }
 
   const formulario = await prisma.formularioVersion.findUnique({
@@ -79,6 +109,16 @@ export async function POST(req: NextRequest) {
       telefonoTutor: (porRol.TELEFONO_CONTACTO as string) || null,
       emailTutor: (porRol.EMAIL_CONTACTO as string) || null,
       cedulaTutor: (porRol.CEDULA_CONTACTO as string) || null,
+      responsablePagoNombre: (porRol.RESPONSABLE_PAGO_NOMBRE as string) || null,
+      responsablePagoApellido: (porRol.RESPONSABLE_PAGO_APELLIDO as string) || null,
+      responsablePagoCedula: (porRol.RESPONSABLE_PAGO_CEDULA as string) || null,
+      responsablePagoTelefono: (porRol.RESPONSABLE_PAGO_TELEFONO as string) || null,
+      responsablePagoParentesco: (porRol.RESPONSABLE_PAGO_PARENTESCO as string) || null,
+      metodoPagoPreferido: (porRol.METODO_PAGO as string) || null,
+      comprobantePagoUrl: (porRol.COMPROBANTE_PAGO as string) || null,
+      tieneBecaExterna: porRol.TIENE_BECA_EXTERNA === true,
+      institucionBecaExterna: (porRol.INSTITUCION_BECA_EXTERNA as string) || null,
+      cartaCompromisoBecaUrl: (porRol.CARTA_COMPROMISO_BECA as string) || null,
     },
   });
 

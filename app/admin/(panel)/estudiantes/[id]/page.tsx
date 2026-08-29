@@ -223,6 +223,24 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
                     {Number(becaActiva.porcentaje)}% de descuento
                   </p>
                   {becaActiva.motivo && <p className="text-xs text-[var(--color-ink-soft)]">{becaActiva.motivo}</p>}
+                  {becaActiva.esExterna && (
+                    <p className="mt-1 text-xs text-[var(--color-ink-soft)]">
+                      Externa{becaActiva.institucionExterna ? ` — ${becaActiva.institucionExterna}` : ""}
+                      {becaActiva.cartaCompromisoUrl && (
+                        <>
+                          {" · "}
+                          <a
+                            href={becaActiva.cartaCompromisoUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold text-[var(--color-green)]"
+                          >
+                            Ver carta compromiso
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  )}
                   <form action={revocarBeca} className="mt-2">
                     <input type="hidden" name="becaId" value={becaActiva.id} />
                     <BotonGuardar
@@ -241,7 +259,7 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
               <summary className="cursor-pointer text-xs font-bold text-[var(--color-green)]">
                 Asignar nueva beca
               </summary>
-              <form action={asignarBeca} className="mt-2 space-y-2">
+              <form action={asignarBeca} encType="multipart/form-data" className="mt-2 space-y-2">
                 <input type="hidden" name="estudianteId" value={estudiante.id} />
                 <label className="block text-xs text-[var(--color-ink-soft)]">
                   Porcentaje (1-100)
@@ -250,6 +268,18 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
                 <label className="block text-xs text-[var(--color-ink-soft)]">
                   Motivo (opcional)
                   <input name="motivo" placeholder="Beca deportiva, hijo de empleado, etc." className={editInputClass} />
+                </label>
+                <label className="flex items-center gap-2 text-xs text-[var(--color-ink-soft)]">
+                  <input name="esExterna" type="checkbox" className="h-4 w-4" />
+                  Es una beca de una institución externa
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Institución externa (si aplica)
+                  <input name="institucionExterna" placeholder="Fundación, gobierno, empresa, etc." className={editInputClass} />
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Carta compromiso (si aplica)
+                  <input name="cartaCompromiso" type="file" accept="image/*,.pdf" className={editInputClass} />
                 </label>
                 <BotonGuardar textoGuardado="✓ Asignada" className="w-full rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
                   Asignar beca

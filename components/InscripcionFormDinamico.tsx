@@ -96,14 +96,27 @@ export function InscripcionFormDinamico({
         if (!preguntaVisible(pregunta.id)) continue;
         if (!pregunta.requerida) continue;
         const val = values[pregunta.clave];
+        const esArchivoVacio =
+          pregunta.tipo === "ARCHIVO" && (!(val instanceof FileList) || val.length === 0);
         const vacio =
           val === undefined ||
           val === null ||
           val === "" ||
           (pregunta.tipo === "CASILLA" && val !== true) ||
-          (Array.isArray(val) && val.length === 0);
+          (Array.isArray(val) && val.length === 0) ||
+          esArchivoVacio;
         if (vacio) faltantes.push(pregunta.etiqueta);
       }
+    }
+
+    // El comprobante de transferencia no es "requerido" a nivel de pregunta
+    // (porque solo aplica si se eligió transferencia), así que se valida aparte.
+    const comprobante = values.comprobantePago;
+    if (
+      values.metodoPagoPreferido === "TRANSFERENCIA" &&
+      (!(comprobante instanceof FileList) || comprobante.length === 0)
+    ) {
+      faltantes.push("Comprobante de pago (transferencia bancaria)");
     }
 
     if (faltantes.length > 0) {
@@ -114,11 +127,20 @@ export function InscripcionFormDinamico({
     setEstado("enviando");
 
     try {
-      const res = await fetch("/api/inscripcion", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formularioVersionId: formulario.id, respuestas: values }),
-      });
+      const formData = new FormData();
+      formData.append("formularioVersionId", formulario.id);
+
+      const respuestasPlano: Record<string, unknown> = {};
+      for (const [clave, val] of Object.entries(values)) {
+        if (val instanceof FileList) {
+          if (val.length > 0) formData.append(`archivo_${clave}`, val[0]);
+        } else {
+          respuestasPlano[clave] = val;
+        }
+      }
+      formData.append("respuestas", JSON.stringify(respuestasPlano));
+
+      const res = await fetch("/api/inscripcion", { method: "POST", body: formData });
       if (!res.ok) throw new Error("fallo");
       setEstado("exito");
     } catch {
@@ -150,7 +172,7 @@ export function InscripcionFormDinamico({
               {seccion.titulo}
             </legend>
             {seccion.descripcion && (
-              <p className="text-sm text-[var(--color-ink-soft)]">{seccion.descripcion}</p>
+              <p className="whitespace-pre-line text-sm text-[var(--color-ink-soft)]">{seccion.descripcion}</p>
             )}
             <div className="grid gap-4 md:grid-cols-2">
               {seccion.preguntas.map((pregunta) => {
@@ -159,7 +181,9 @@ export function InscripcionFormDinamico({
                   <div
                     key={pregunta.id}
                     className={
-                      pregunta.tipo === "TEXTO_LARGO" || pregunta.tipo === "OPCION_MULTIPLE"
+                      pregunta.tipo === "TEXTO_LARGO" ||
+                      pregunta.tipo === "OPCION_MULTIPLE" ||
+                      pregunta.tipo === "ARCHIVO"
                         ? "md:col-span-2"
                         : ""
                     }
@@ -319,6 +343,18 @@ function PreguntaCampo({
               </option>
             ))}
           </select>
+        </label>
+      );
+    case "ARCHIVO":
+      return (
+        <label className="block">
+          {label}
+          <input
+            type="file"
+            accept="image/*,.pdf"
+            {...register(pregunta.clave)}
+            className={inputClass}
+          />
         </label>
       );
     case "TEXTO_CORTO":

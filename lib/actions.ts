@@ -36,6 +36,17 @@ async function guardarArchivoSiExiste(formData: FormData, campo: string): Promis
   return `/uploads/sitio/${nombreArchivo}`;
 }
 
+async function guardarDocumentoSiExiste(formData: FormData, campo: string): Promise<string | undefined> {
+  const archivo = formData.get(campo) as File | null;
+  if (!archivo || archivo.size === 0) return undefined;
+  const carpeta = path.join(process.cwd(), "public", "uploads", "documentos");
+  await mkdir(carpeta, { recursive: true });
+  const extension = archivo.name.split(".").pop() || "pdf";
+  const nombreArchivo = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+  await writeFile(path.join(carpeta, nombreArchivo), Buffer.from(await archivo.arrayBuffer()));
+  return `/uploads/documentos/${nombreArchivo}`;
+}
+
 // ---------------------------------------------------------------------------
 // GENERADORES DE NÚMERO DE EXPEDIENTE / FACTURA
 // ---------------------------------------------------------------------------
@@ -284,6 +295,26 @@ function construirObservacionesDesdeSolicitud(
 
   if (s.planPago) lineas.push(`Plan de pago acordado: ${s.planPago}`);
   if (s.tipoEscolaridad) lineas.push(`Tipo de escolaridad: ${s.tipoEscolaridad}`);
+
+  if (s.responsablePagoNombre)
+    lineas.push(
+      `Responsable del pago: ${s.responsablePagoNombre} ${s.responsablePagoApellido ?? ""} (${s.responsablePagoParentesco ?? "-"}) · Cédula: ${s.responsablePagoCedula ?? "-"} · Tel: ${s.responsablePagoTelefono ?? "-"}`
+    );
+
+  if (s.metodoPagoPreferido) {
+    const metodo = s.metodoPagoPreferido === "TRANSFERENCIA" ? "Transferencia bancaria" : "Efectivo en oficina";
+    lineas.push(`Método de pago elegido: ${metodo}`);
+  }
+  if (s.comprobantePagoUrl) lineas.push(`Comprobante de pago adjunto: ${s.comprobantePagoUrl}`);
+
+  if (s.tieneBecaExterna) {
+    lineas.push(
+      `Beca de institución externa: ${s.institucionBecaExterna ?? "sin especificar"}${
+        s.cartaCompromisoBecaUrl ? ` · Carta compromiso: ${s.cartaCompromisoBecaUrl}` : ""
+      }`
+    );
+  }
+
   if (s.comentarios) lineas.push(`Comentarios: ${s.comentarios}`);
 
   return lineas.length > 0 ? lineas.join("\n") : "";
@@ -1016,6 +1047,9 @@ export async function asignarBeca(formData: FormData) {
   const estudianteId = String(formData.get("estudianteId"));
   const porcentaje = Number(formData.get("porcentaje"));
   const motivo = String(formData.get("motivo") || "").trim() || null;
+  const esExterna = formData.get("esExterna") === "on";
+  const institucionExterna = String(formData.get("institucionExterna") || "").trim() || null;
+  const cartaCompromisoUrl = await guardarDocumentoSiExiste(formData, "cartaCompromiso");
 
   if (!porcentaje || porcentaje <= 0 || porcentaje > 100) {
     throw new Error("El porcentaje de la beca debe estar entre 1 y 100.");
@@ -1028,7 +1062,15 @@ export async function asignarBeca(formData: FormData) {
     });
 
     const beca = await tx.beca.create({
-      data: { estudianteId, porcentaje, motivo, creadaPorId: usuario.id },
+      data: {
+        estudianteId,
+        porcentaje,
+        motivo,
+        creadaPorId: usuario.id,
+        esExterna,
+        institucionExterna: esExterna ? institucionExterna : null,
+        cartaCompromisoUrl: esExterna ? cartaCompromisoUrl : null,
+      },
     });
 
     // Aplica el descuento a las cuotas ya generadas pero aún no cobradas.

@@ -747,6 +747,13 @@ model Beca {
   creadaEn     DateTime @default(now())
   creadaPorId  String?
 
+  // Beca otorgada por una institución externa (fundación, gobierno, empresa),
+  // no por el colegio. Cuando aplica, se guarda quién la otorga y la carta
+  // compromiso que respalda el descuento.
+  esExterna          Boolean @default(false)
+  institucionExterna String?
+  cartaCompromisoUrl String?
+
   estudiante   Estudiante @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
   creadaPor    AdminUser? @relation("BecasAsignadasPor", fields: [creadaPorId], references: [id])
   cargos       Cargo[]
@@ -821,6 +828,7 @@ enum TipoPregunta {
   CASILLA
   SELECT_NIVEL   // opciones se llenan solas desde la tabla Nivel
   SELECT_CUIDO   // opciones se llenan solas desde la tabla ProgramaCuido
+  ARCHIVO        // adjuntar imagen/PDF (ej. comprobante de pago, carta compromiso)
 }
 
 // Marca semántica opcional: si el administrador etiqueta una pregunta con esto,
@@ -836,6 +844,16 @@ enum RolSistemaPregunta {
   TELEFONO_CONTACTO
   EMAIL_CONTACTO
   CEDULA_CONTACTO
+  RESPONSABLE_PAGO_NOMBRE
+  RESPONSABLE_PAGO_APELLIDO
+  RESPONSABLE_PAGO_CEDULA
+  RESPONSABLE_PAGO_TELEFONO
+  RESPONSABLE_PAGO_PARENTESCO
+  METODO_PAGO
+  COMPROBANTE_PAGO
+  TIENE_BECA_EXTERNA
+  INSTITUCION_BECA_EXTERNA
+  CARTA_COMPROMISO_BECA
 }
 
 model FormularioVersion {
@@ -1042,6 +1060,22 @@ model SolicitudInscripcion {
   // --- Plan de pago y tipo de escolaridad ---
   planPago          PlanPago?
   tipoEscolaridad   TipoEscolaridad?
+
+  // --- Responsable del pago (persona distinta al contacto principal, si aplica) ---
+  responsablePagoNombre     String?
+  responsablePagoApellido   String?
+  responsablePagoCedula     String?
+  responsablePagoTelefono   String?
+  responsablePagoParentesco String?
+
+  // --- Método de pago elegido y comprobante (si eligió transferencia bancaria) ---
+  metodoPagoPreferido String? // "EFECTIVO_OFICINA" | "TRANSFERENCIA"
+  comprobantePagoUrl  String?
+
+  // --- Beca de institución externa declarada por el solicitante ---
+  tieneBecaExterna       Boolean @default(false)
+  institucionBecaExterna String?
+  cartaCompromisoBecaUrl String?
 
   // --- Documentos entregados en físico (marcados por secretaría al recibirlos) ---
   docActaNacimiento     Boolean @default(false)
