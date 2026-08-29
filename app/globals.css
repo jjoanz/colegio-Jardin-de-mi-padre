@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+:root {
+  /* Fondo del sitio público */
+  --color-cream: #ffffff;
+  --color-cream-soft: #f4f6f8;
+
+  --color-ink: #1f2430;
+  --color-ink-soft: #5b6472;
+
+  /* Paleta del logo (marca / landing) */
+  --color-sky: #2f9bd6;
+  --color-sky-deep: #1c6e9e;
+  --color-sun: #f7b733;
+  --color-sun-deep: #dd8f10;
+  --color-leaf: #4fae5c;
+  --color-leaf-deep: #337a3d;
+  --color-coral: #f4694f;
+
+  /* Paleta del panel administrativo (más sobria/profesional) */
+  --color-paper: #ffffff;
+  --color-paper-dark: #f4f6f8;
+  --color-line: #e3e7ec;
+  --color-green: #1c6e9e;
+  --color-green-deep: #16324a;
+  --color-gold: #dd8f10;
+
+  --font-display: var(--font-fredoka);
+  --font-body: var(--font-nunito);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.blob-card {
+  border-radius: 28px;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(4deg); }
+}
+@keyframes float-slower {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(-3deg); }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.animate-float { animation: float-slow 6s ease-in-out infinite; }
+.animate-float-slower { animation: float-slower 7s ease-in-out infinite; }
+.animate-twinkle { animation: twinkle 3s ease-in-out infinite; }
