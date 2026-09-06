@@ -40,16 +40,47 @@ export default auth((req) => {
   const pathname = req.nextUrl.pathname;
   const isLoginPage = pathname === "/admin/login";
   const isSinAccesoPage = pathname === "/admin/sin-acceso";
+  const isCambiarPasswordAdmin = pathname === "/admin/cambiar-password";
   const isAdminRoute = pathname.startsWith("/admin");
   const isPanelGeneral = pathname === "/admin";
+  const isPortalRoute = pathname.startsWith("/portal");
+  const isCambiarPasswordPortal = pathname === "/portal/cambiar-password";
+
+  const usuario = req.auth?.user as
+    | { permisos?: string[]; tipoUsuario?: string; debeCambiarPassword?: boolean }
+    | undefined;
+  const esPadre = usuario?.tipoUsuario === "PADRE";
+  const esStaff = usuario?.tipoUsuario === "STAFF";
+
+  // El portal de padres tiene su propia guardia de sesión y de cambio forzado.
+  if (isPortalRoute) {
+    if (!isLoggedIn || !esPadre) {
+      return NextResponse.redirect(new URL("/admin/login", req.nextUrl.origin));
+    }
+    if (usuario?.debeCambiarPassword && !isCambiarPasswordPortal) {
+      return NextResponse.redirect(new URL("/portal/cambiar-password", req.nextUrl.origin));
+    }
+    return NextResponse.next();
+  }
+
+  // Un padre autenticado no debe poder ver el panel de personal.
+  if (isAdminRoute && !isLoginPage && isLoggedIn && esPadre) {
+    return NextResponse.redirect(new URL("/portal", req.nextUrl.origin));
+  }
 
   if (isAdminRoute && !isLoginPage && !isLoggedIn) {
     const loginUrl = new URL("/admin/login", req.nextUrl.origin);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAdminRoute && !isLoginPage && !isSinAccesoPage && isLoggedIn) {
-    const permisos = (req.auth?.user as { permisos?: string[] } | undefined)?.permisos ?? [];
+  if (isAdminRoute && !isLoginPage && isLoggedIn && esStaff) {
+    if (usuario?.debeCambiarPassword && !isCambiarPasswordAdmin) {
+      return NextResponse.redirect(new URL("/admin/cambiar-password", req.nextUrl.origin));
+    }
+  }
+
+  if (isAdminRoute && !isLoginPage && !isSinAccesoPage && !isCambiarPasswordAdmin && isLoggedIn) {
+    const permisos = usuario?.permisos ?? [];
 
     // Caso especial: si cae en el panel general (destino por defecto tras
     // el login) pero no tiene permiso para verlo, no le mostramos un error
@@ -84,5 +115,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/portal/:path*"],
 };

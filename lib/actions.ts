@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requierePermiso } from "@/lib/permisos";
 import { generarCargosPendientesAhora } from "@/lib/generacion-cargos";
-import { notificarResultadoSolicitud, notificarReciboPago } from "@/lib/notificaciones";
+import { notificarResultadoSolicitud, notificarReciboPago, notificarAccesoPortal } from "@/lib/notificaciones";
+import { otorgarAccesoTutor } from "@/lib/portal-acceso";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import {
@@ -103,7 +104,7 @@ export async function aprobarSolicitud(formData: FormData) {
     );
   }
 
-  await prisma.$transaction(async (tx) => {
+  const resultado = await prisma.$transaction(async (tx) => {
     // 1. Crear o encontrar al tutor por correo (con número de expediente si es nuevo)
     const tutorExistente = await tx.tutor.findUnique({ where: { email: emailTutor } });
     const tutor =
@@ -231,13 +232,27 @@ export async function aprobarSolicitud(formData: FormData) {
       data: { estado: "APROBADA", estudianteCreadoId: estudiante.id },
     });
 
-    return estudiante;
+    return { estudiante, tutorId: tutor.id, tutorEsNuevo: !tutorExistente };
   });
+
+  const { tutorId, tutorEsNuevo } = resultado;
 
   await notificarResultadoSolicitud(emailTutor, `${nombreEstudiante} ${apellidoEstudiante}`, true);
 
+  // Si el tutor es nuevo, se le crea de una vez su acceso al portal de padres.
+  if (tutorEsNuevo) {
+    const { usuario, passwordPlano } = await otorgarAccesoTutor(tutorId);
+    await notificarAccesoPortal({
+      email: emailTutor,
+      nombre: nombreTutor,
+      usuario,
+      passwordTemporal: passwordPlano,
+    });
+  }
+
   revalidatePath("/admin/solicitudes");
   revalidatePath("/admin/estudiantes");
+  revalidatePath("/admin/padres");
 }
 
 // Compila los campos nuevos del formulario de inscripción (salud, familia,
@@ -1165,6 +1180,25 @@ export async function actualizarTutor(formData: FormData) {
   });
   revalidatePath("/admin/padres");
   revalidatePath("/admin/estudiantes");
+}
+
+// Genera (o regenera) la contraseña de acceso al portal de un tutor y le
+// reenvía el correo con las credenciales. Sirve para tutores que quedaron
+// sin acceso (creados antes de este sistema) o que perdieron su contraseña.
+export async function otorgarAccesoTutorManual(formData: FormData) {
+  await requierePermiso("padres", "editar");
+  const tutorId = String(formData.get("tutorId"));
+
+  const tutor = await prisma.tutor.findUniqueOrThrow({ where: { id: tutorId } });
+  const { usuario, passwordPlano } = await otorgarAccesoTutor(tutorId);
+  await notificarAccesoPortal({
+    email: tutor.email,
+    nombre: tutor.nombre,
+    usuario,
+    passwordTemporal: passwordPlano,
+  });
+
+  revalidatePath("/admin/padres");
 }
 
 // ---------------------------------------------------------------------------

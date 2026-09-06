@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { actualizarTutor } from "@/lib/actions";
+import { actualizarTutor, otorgarAccesoTutorManual } from "@/lib/actions";
 import { BotonGuardar } from "@/components/BotonGuardar";
 
 export const dynamic = "force-dynamic";
@@ -13,12 +13,22 @@ export default async function PadresPage() {
 
   return (
     <div>
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-[var(--color-ink)]">
-        Padres, madres y tutores
-      </h1>
-      <p className="mt-1 text-[var(--color-ink-soft)]">
-        Cuando un padre, madre o tutor tiene varios hijos en el colegio, aquí se ven todos juntos. Haz clic para editar sus datos.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-[var(--color-ink)]">
+            Padres, madres y tutores
+          </h1>
+          <p className="mt-1 text-[var(--color-ink-soft)]">
+            Cuando un padre, madre o tutor tiene varios hijos en el colegio, aquí se ven todos juntos. Haz clic para editar sus datos.
+          </p>
+        </div>
+        <Link
+          href="/admin/padres/importar"
+          className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
+        >
+          Importar en lote
+        </Link>
+      </div>
 
       <div className="mt-8 space-y-3">
         {tutores.map((t) => (
@@ -85,6 +95,24 @@ export default async function PadresPage() {
               </label>
               <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-2">
                 Guardar cambios
+              </BotonGuardar>
+            </form>
+            <form
+              action={otorgarAccesoTutorManual}
+              className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-line)] p-4"
+            >
+              <input type="hidden" name="tutorId" value={t.id} />
+              <p className="text-xs text-[var(--color-ink-soft)]">
+                Acceso al portal:{" "}
+                <span className={t.passwordHash ? "font-semibold text-[var(--color-green)]" : "font-semibold text-red-600"}>
+                  {t.passwordHash ? "Ya tiene acceso" : "Todavía no tiene acceso"}
+                </span>
+              </p>
+              <BotonGuardar
+                textoGuardado="✓ Enviado"
+                className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
+              >
+                {t.passwordHash ? "Reenviar credenciales" : "Otorgar acceso"}
               </BotonGuardar>
             </form>
           </details>

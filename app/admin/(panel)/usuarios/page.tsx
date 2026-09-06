@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import {
   crearUsuarioAdmin,
   actualizarUsuarioAdmin,
   resetPasswordUsuarioAdmin,
+  otorgarAccesoUsuarioAdmin,
 } from "@/lib/actions-usuarios";
 import { BotonGuardar } from "@/components/BotonGuardar";
 
@@ -19,12 +21,22 @@ export default async function UsuariosPage() {
 
   return (
     <div>
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-[var(--color-ink)]">
-        Usuarios del panel
-      </h1>
-      <p className="mt-1 text-[var(--color-ink-soft)]">
-        Crea cuentas para el personal del colegio y asigna su rol de acceso.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-[var(--color-ink)]">
+            Usuarios del panel
+          </h1>
+          <p className="mt-1 text-[var(--color-ink-soft)]">
+            Crea cuentas para el personal del colegio y asigna su rol de acceso.
+          </p>
+        </div>
+        <Link
+          href="/admin/usuarios/importar"
+          className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
+        >
+          Importar en lote
+        </Link>
+      </div>
 
       <section className="mt-8 rounded-2xl border border-[var(--color-line)] bg-white p-5">
         <h2 className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">
@@ -155,6 +167,23 @@ export default async function UsuariosPage() {
                 className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] disabled:opacity-60"
               >
                 Restablecer contraseña
+              </BotonGuardar>
+            </form>
+
+            <form
+              action={otorgarAccesoUsuarioAdmin}
+              className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-line)] p-4"
+            >
+              <input type="hidden" name="usuarioId" value={u.id} />
+              <p className="text-xs text-[var(--color-ink-soft)]">
+                Genera una nueva contraseña temporal y se la reenvía por correo (útil si la
+                perdió).
+              </p>
+              <BotonGuardar
+                textoGuardado="✓ Enviado"
+                className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
+              >
+                Reenviar credenciales
               </BotonGuardar>
             </form>
           </details>

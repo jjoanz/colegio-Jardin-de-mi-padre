@@ -116,6 +116,69 @@ export async function notificarReciboPago(params: {
   });
 }
 
+export async function notificarAccesoPortal(params: {
+  email: string;
+  nombre: string;
+  usuario: string;
+  passwordTemporal: string;
+}): Promise<void> {
+  const urlAcceso = process.env.NEXT_PUBLIC_SITE_URL
+    ? `${process.env.NEXT_PUBLIC_SITE_URL}/admin/login`
+    : "/admin/login";
+
+  await enviarCorreo({
+    to: params.email,
+    subject: `Tu acceso al portal de padres de ${NOMBRE_COLEGIO}`,
+    html: plantillaBase(
+      "Acceso al portal de padres",
+      `<p>Hola ${params.nombre},</p>
+       <p>Ya puedes entrar al portal de padres para ver las facturas y los montos
+       pendientes de tus hijos. Estas son tus credenciales:</p>
+       <table style="width:100%; border-collapse: collapse;">
+         <tr><td style="padding:4px 0;">Usuario (cédula o correo)</td><td style="text-align:right;"><strong>${params.usuario}</strong></td></tr>
+         <tr><td style="padding:4px 0;">Contraseña temporal</td><td style="text-align:right;"><strong>${params.passwordTemporal}</strong></td></tr>
+       </table>
+       <p style="margin-top:16px;">
+         Entra en <a href="${urlAcceso}">${urlAcceso}</a> (botón "Acceder") con tu
+         cédula o correo y esa contraseña. Al entrar te pediremos que la cambies
+         por una de tu elección.
+       </p>`
+    ),
+  });
+}
+
+export async function notificarAccesoPanel(params: {
+  email: string;
+  nombre: string;
+  usuario: string;
+  passwordTemporal: string;
+  rol: string;
+}): Promise<void> {
+  const urlAcceso = process.env.NEXT_PUBLIC_SITE_URL
+    ? `${process.env.NEXT_PUBLIC_SITE_URL}/admin/login`
+    : "/admin/login";
+
+  await enviarCorreo({
+    to: params.email,
+    subject: `Tu acceso al panel de ${NOMBRE_COLEGIO}`,
+    html: plantillaBase(
+      "Acceso al panel",
+      `<p>Hola ${params.nombre},</p>
+       <p>Se creó tu cuenta en el panel de ${NOMBRE_COLEGIO} con el rol de
+       <strong>${params.rol}</strong>. Estas son tus credenciales:</p>
+       <table style="width:100%; border-collapse: collapse;">
+         <tr><td style="padding:4px 0;">Usuario (cédula o correo)</td><td style="text-align:right;"><strong>${params.usuario}</strong></td></tr>
+         <tr><td style="padding:4px 0;">Contraseña temporal</td><td style="text-align:right;"><strong>${params.passwordTemporal}</strong></td></tr>
+       </table>
+       <p style="margin-top:16px;">
+         Entra en <a href="${urlAcceso}">${urlAcceso}</a> (botón "Acceder") con tu
+         cédula o correo y esa contraseña. Al entrar te pediremos que la cambies
+         por una de tu elección.
+       </p>`
+    ),
+  });
+}
+
 export async function notificarCargoGenerado(params: {
   estudianteId: string;
   descripcion: string;

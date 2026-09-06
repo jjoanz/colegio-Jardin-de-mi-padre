@@ -16,14 +16,14 @@ export default function AdminLoginPage() {
 
     const form = new FormData(e.currentTarget);
     const res = await signIn("credentials", {
-      email: form.get("email"),
+      identificador: form.get("identificador"),
       password: form.get("password"),
       redirect: false,
     });
 
     setCargando(false);
     if (res?.error) {
-      setError("Correo o contraseña incorrectos.");
+      setError("Correo/cédula o contraseña incorrectos.");
       return;
     }
     router.push("/admin");
@@ -40,17 +40,17 @@ export default function AdminLoginPage() {
           <img src="/logo.png" alt="" className="h-12 w-12 object-contain" />
           <div>
             <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--color-ink)]">
-              Portal administrativo
+              Acceder
             </h1>
-            <p className="text-xs text-[var(--color-ink-soft)]">Acceso exclusivo del personal</p>
+            <p className="text-xs text-[var(--color-ink-soft)]">Personal, maestros y padres/tutores</p>
           </div>
         </div>
 
         <label className="mt-7 block text-sm font-semibold text-[var(--color-ink)]">
-          Correo
+          Correo o cédula
           <input
-            name="email"
-            type="email"
+            name="identificador"
+            type="text"
             required
             className="mt-1.5 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-dark)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-green)] focus:bg-white focus:ring-4 focus:ring-[var(--color-green)]/10"
           />

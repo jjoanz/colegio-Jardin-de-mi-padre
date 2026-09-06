@@ -23,7 +23,7 @@ export function SidebarResponsivo({
       <div className="flex items-center justify-between bg-[var(--color-green-deep)] px-4 py-3 text-white md:hidden print:hidden">
         <div className="flex items-center gap-2">
           <img src="/logo.png" alt="" className="h-7 w-7 object-contain" />
-          <span className="font-[family-name:var(--font-display)] text-sm font-semibold">Panel admin</span>
+          <span className="font-[family-name:var(--font-display)] text-sm font-semibold">Acceder</span>
         </div>
         <button
           onClick={() => setAbierto(true)}
@@ -54,7 +54,7 @@ export function SidebarResponsivo({
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="" className="h-9 w-9 object-contain" />
             <div>
-              <p className="font-[family-name:var(--font-display)] text-base font-semibold">Panel admin</p>
+              <p className="font-[family-name:var(--font-display)] text-base font-semibold">Acceder</p>
               <p className="mt-0.5 text-xs text-white/50">{nombreUsuario}</p>
             </div>
           </div>

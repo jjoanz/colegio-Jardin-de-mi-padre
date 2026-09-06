@@ -888,7 +888,7 @@ function SiteHeader() {
           <Link href="/biblioteca-digital" className="transition-colors hover:text-[var(--color-ink)]">Biblioteca digital</Link>
           <Link href="/valores-agregados" className="transition-colors hover:text-[var(--color-ink)]">Valores agregados</Link>
           <Link href="/inscripcion" className="transition-colors hover:text-[var(--color-ink)]">Inscripciones</Link>
-          <Link href="/admin/login" className="transition-colors hover:text-[var(--color-ink)]">Portal admin</Link>
+          <Link href="/admin/login" className="transition-colors hover:text-[var(--color-ink)]">Acceder</Link>
         </nav>
         <Link
           href="/inscripcion"
@@ -919,7 +919,7 @@ function SiteFooter() {
           <ul className="mt-3 space-y-2 text-sm">
             <li><a href="#niveles" className="hover:text-white">Niveles</a></li>
             <li><Link href="/inscripcion" className="hover:text-white">Inscripciones</Link></li>
-            <li><Link href="/admin/login" className="hover:text-white">Portal admin</Link></li>
+            <li><Link href="/admin/login" className="hover:text-white">Acceder</Link></li>
           </ul>
         </div>
         <div>

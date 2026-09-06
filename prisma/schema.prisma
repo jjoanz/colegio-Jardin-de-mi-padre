@@ -65,7 +65,9 @@ model AdminUser {
   id            String   @id @default(cuid())
   nombre        String
   email         String   @unique
+  cedula        String?  @unique // permite iniciar sesión también con cédula
   passwordHash  String
+  debeCambiarPassword Boolean @default(false) // true tras carga masiva o reseteo
   rol           RolAdmin @default(SECRETARIA) // ← LEGACY, se elimina tras migrar
   roleId        String?                        // ← NUEVO sistema de roles
   role          Role?    @relation(fields: [roleId], references: [id])
@@ -497,6 +499,9 @@ model Tutor {
   email        String   @unique
   direccion    String?
   ocupacion    String?
+  passwordHash String?  // null = todavía no tiene acceso al portal
+  debeCambiarPassword Boolean @default(true)
+  activo       Boolean  @default(true)
   creadoEn     DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 

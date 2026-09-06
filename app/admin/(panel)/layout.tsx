@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/solicitudes", label: "Solicitudes de inscripción", grupo: "Académico" },
   { href: "/admin/estudiantes", label: "Estudiantes", grupo: "Académico" },
   { href: "/admin/padres", label: "Padres, madres y tutores", grupo: "Académico" },
+  { href: "/admin/padres/importar", label: "Importar padres (masivo)", grupo: "Académico" },
   { href: "/admin/anios-escolares", label: "Años escolares", grupo: "Académico" },
   { href: "/admin/aulas", label: "Aulas", grupo: "Académico" },
   { href: "/admin/materias", label: "Materias", grupo: "Académico" },
@@ -37,6 +38,7 @@ const NAV = [
 
   // --- Administración ---
   { href: "/admin/usuarios", label: "Usuarios", grupo: "Administración" },
+  { href: "/admin/usuarios/importar", label: "Importar maestros (masivo)", grupo: "Administración" },
   { href: "/admin/roles", label: "Roles y permisos", grupo: "Administración" },
   { href: "/admin/contenido-sitio", label: "Contenido del sitio", grupo: "Administración" },
 ];
