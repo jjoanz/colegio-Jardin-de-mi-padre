@@ -1,5 +1,6 @@
 import { cambiarPasswordTutor } from "@/lib/actions-portal";
 import { BotonGuardar } from "@/components/BotonGuardar";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export default function CambiarPasswordPortalPage() {
   return (
@@ -14,21 +15,21 @@ export default function CambiarPasswordPortalPage() {
       <form action={cambiarPasswordTutor} className="mt-6">
         <label className="block text-sm font-semibold text-[var(--color-ink)]">
           Contraseña actual
-          <input
+          <PasswordInput
             name="passwordActual"
-            type="password"
             required
+            autoComplete="current-password"
             className="mt-1.5 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-dark)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-green)] focus:bg-white focus:ring-4 focus:ring-[var(--color-green)]/10"
           />
         </label>
 
         <label className="mt-4 block text-sm font-semibold text-[var(--color-ink)]">
           Contraseña nueva (mín. 8 caracteres)
-          <input
+          <PasswordInput
             name="passwordNueva"
-            type="password"
             minLength={8}
             required
+            autoComplete="new-password"
             className="mt-1.5 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-dark)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-green)] focus:bg-white focus:ring-4 focus:ring-[var(--color-green)]/10"
           />
         </label>

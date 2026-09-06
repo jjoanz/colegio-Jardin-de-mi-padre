@@ -7,6 +7,7 @@ import {
   otorgarAccesoUsuarioAdmin,
 } from "@/lib/actions-usuarios";
 import { BotonGuardar } from "@/components/BotonGuardar";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +54,7 @@ export default async function UsuariosPage() {
           </label>
           <label className="text-xs text-[var(--color-ink-soft)]">
             Contraseña temporal
-            <input name="password" type="password" minLength={8} required className={inputClass} />
+            <PasswordInput name="password" minLength={8} required autoComplete="new-password" className={inputClass} />
           </label>
           <label className="text-xs text-[var(--color-ink-soft)]">
             Rol
@@ -154,11 +155,11 @@ export default async function UsuariosPage() {
               <input type="hidden" name="usuarioId" value={u.id} />
               <label className="flex-1 text-xs text-[var(--color-ink-soft)]">
                 Nueva contraseña
-                <input
+                <PasswordInput
                   name="password"
-                  type="password"
                   minLength={8}
                   required
+                  autoComplete="new-password"
                   className={inputClass}
                 />
               </label>

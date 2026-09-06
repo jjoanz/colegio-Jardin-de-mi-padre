@@ -39,6 +39,8 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const pathname = req.nextUrl.pathname;
   const isLoginPage = pathname === "/admin/login";
+  const isRecuperarPage = pathname === "/admin/recuperar-password";
+  const isPaginaPublicaAdmin = isLoginPage || isRecuperarPage;
   const isSinAccesoPage = pathname === "/admin/sin-acceso";
   const isCambiarPasswordAdmin = pathname === "/admin/cambiar-password";
   const isAdminRoute = pathname.startsWith("/admin");
@@ -64,22 +66,22 @@ export default auth((req) => {
   }
 
   // Un padre autenticado no debe poder ver el panel de personal.
-  if (isAdminRoute && !isLoginPage && isLoggedIn && esPadre) {
+  if (isAdminRoute && !isPaginaPublicaAdmin && isLoggedIn && esPadre) {
     return NextResponse.redirect(new URL("/portal", req.nextUrl.origin));
   }
 
-  if (isAdminRoute && !isLoginPage && !isLoggedIn) {
+  if (isAdminRoute && !isPaginaPublicaAdmin && !isLoggedIn) {
     const loginUrl = new URL("/admin/login", req.nextUrl.origin);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAdminRoute && !isLoginPage && isLoggedIn && esStaff) {
+  if (isAdminRoute && !isPaginaPublicaAdmin && isLoggedIn && esStaff) {
     if (usuario?.debeCambiarPassword && !isCambiarPasswordAdmin) {
       return NextResponse.redirect(new URL("/admin/cambiar-password", req.nextUrl.origin));
     }
   }
 
-  if (isAdminRoute && !isLoginPage && !isSinAccesoPage && !isCambiarPasswordAdmin && isLoggedIn) {
+  if (isAdminRoute && !isPaginaPublicaAdmin && !isSinAccesoPage && !isCambiarPasswordAdmin && isLoggedIn) {
     const permisos = usuario?.permisos ?? [];
 
     // Caso especial: si cae en el panel general (destino por defecto tras

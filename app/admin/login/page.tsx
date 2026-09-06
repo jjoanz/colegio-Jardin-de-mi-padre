@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { PasswordInput } from "@/components/PasswordInput";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -58,13 +60,19 @@ export default function AdminLoginPage() {
 
         <label className="mt-4 block text-sm font-semibold text-[var(--color-ink)]">
           Contraseña
-          <input
+          <PasswordInput
             name="password"
-            type="password"
             required
+            autoComplete="current-password"
             className="mt-1.5 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-dark)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-green)] focus:bg-white focus:ring-4 focus:ring-[var(--color-green)]/10"
           />
         </label>
+
+        <div className="mt-2 text-right">
+          <Link href="/admin/recuperar-password" className="text-xs font-semibold text-[var(--color-green)]">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
 
         {error && (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
