@@ -3,7 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   session: { strategy: "jwt" },
   pages: {
     signIn: "/admin/login",
@@ -16,8 +16,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Contraseña", type: "password" },
       },
       authorize: async (credentials) => {
-        const identificador = credentials?.identificador as string | undefined;
-        const password = credentials?.password as string | undefined;
+        // .trim() porque es muy fácil pegar la cédula/contraseña con un
+        // espacio de sobra (copiado del correo, autocompletado, etc.) y eso
+        // no debería impedir el login.
+        const identificador = (credentials?.identificador as string | undefined)?.trim();
+        const password = (credentials?.password as string | undefined)?.trim();
         if (!identificador || !password) return null;
 
         // 1. Personal del colegio (AdminUser) — correo o cédula.
@@ -73,13 +76,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt: async ({ token, user }) => {
+    jwt: async ({ token, user, trigger, session }) => {
       if (user) {
         token.id = (user as { id?: string }).id;
         token.role = (user as { role?: string }).role;
         token.permisos = (user as { permisos?: string[] }).permisos ?? [];
         token.tipoUsuario = (user as { tipoUsuario?: string }).tipoUsuario;
         token.debeCambiarPassword = (user as { debeCambiarPassword?: boolean }).debeCambiarPassword ?? false;
+      }
+      // Se dispara desde unstable_update() — usado justo después de cambiar la
+      // contraseña, para que el token deje de exigir el cambio sin tener que
+      // volver a iniciar sesión (si no, el middleware seguiría rebotando a la
+      // pantalla de cambio de contraseña con el valor viejo del token).
+      if (trigger === "update" && session && typeof session.debeCambiarPassword === "boolean") {
+        token.debeCambiarPassword = session.debeCambiarPassword;
       }
       return token;
     },

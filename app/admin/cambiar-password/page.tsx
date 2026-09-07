@@ -1,12 +1,19 @@
-import { cambiarPasswordAdminUser } from "@/lib/actions-usuarios";
+"use client";
+
+import { useActionState } from "react";
+import { cambiarPasswordAdminUser, type EstadoCambioPassword } from "@/lib/actions-usuarios";
 import { BotonGuardar } from "@/components/BotonGuardar";
 import { PasswordInput } from "@/components/PasswordInput";
 
+const estadoInicial: EstadoCambioPassword = {};
+
 export default function CambiarPasswordAdminPage() {
+  const [estado, accion] = useActionState(cambiarPasswordAdminUser, estadoInicial);
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--color-paper-dark)] px-6">
       <form
-        action={cambiarPasswordAdminUser}
+        action={accion}
         className="w-full max-w-sm rounded-3xl border border-[var(--color-line)] bg-white p-8 shadow-[0_20px_50px_rgba(22,50,74,0.12)]"
       >
         <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--color-ink)]">
@@ -36,6 +43,10 @@ export default function CambiarPasswordAdminPage() {
             className="mt-1.5 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-dark)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-green)] focus:bg-white focus:ring-4 focus:ring-[var(--color-green)]/10"
           />
         </label>
+
+        {estado.error && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{estado.error}</p>
+        )}
 
         <BotonGuardar
           textoGuardando="Cambiando…"

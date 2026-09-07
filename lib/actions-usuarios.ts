@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requierePermiso } from "@/lib/permisos";
-import { auth } from "@/lib/auth";
+import { auth, unstable_update } from "@/lib/auth";
 import { otorgarAccesoAdminUser } from "@/lib/portal-acceso";
 import { notificarAccesoPanel } from "@/lib/notificaciones";
 
@@ -17,7 +17,7 @@ export async function crearUsuarioAdmin(formData: FormData) {
   await requierePermiso("usuarios", "crear");
   const nombre = String(formData.get("nombre"));
   const email = String(formData.get("email"));
-  const password = String(formData.get("password"));
+  const password = String(formData.get("password")).trim();
   const roleId = String(formData.get("roleId"));
 
   if (password.length < 8) {
@@ -63,7 +63,7 @@ export async function actualizarUsuarioAdmin(formData: FormData) {
 export async function resetPasswordUsuarioAdmin(formData: FormData) {
   await requierePermiso("usuarios", "editar");
   const usuarioId = String(formData.get("usuarioId"));
-  const password = String(formData.get("password"));
+  const password = String(formData.get("password")).trim();
 
   if (password.length < 8) {
     throw new Error("La contraseña debe tener al menos 8 caracteres.");
@@ -106,23 +106,28 @@ export async function otorgarAccesoUsuarioAdmin(formData: FormData) {
 // CAMBIO DE CONTRASEÑA FORZADO (personal con debeCambiarPassword = true)
 // ---------------------------------------------------------------------------
 
-export async function cambiarPasswordAdminUser(formData: FormData) {
+export type EstadoCambioPassword = { error?: string };
+
+export async function cambiarPasswordAdminUser(
+  _prevState: EstadoCambioPassword,
+  formData: FormData
+): Promise<EstadoCambioPassword> {
   const session = await auth();
   if (!session?.user || (session.user as { tipoUsuario?: string }).tipoUsuario !== "STAFF") {
-    throw new Error("No autorizado.");
+    return { error: "No autorizado." };
   }
   const usuarioId = (session.user as { id: string }).id;
 
-  const passwordActual = String(formData.get("passwordActual"));
-  const passwordNueva = String(formData.get("passwordNueva"));
+  const passwordActual = String(formData.get("passwordActual")).trim();
+  const passwordNueva = String(formData.get("passwordNueva")).trim();
 
   if (passwordNueva.length < 8) {
-    throw new Error("La nueva contraseña debe tener al menos 8 caracteres.");
+    return { error: "La nueva contraseña debe tener al menos 8 caracteres." };
   }
 
   const usuario = await prisma.adminUser.findUniqueOrThrow({ where: { id: usuarioId } });
   if (!(await bcrypt.compare(passwordActual, usuario.passwordHash))) {
-    throw new Error("La contraseña actual no es correcta.");
+    return { error: "La contraseña actual no es correcta." };
   }
 
   const passwordHash = await bcrypt.hash(passwordNueva, 10);
@@ -131,5 +136,6 @@ export async function cambiarPasswordAdminUser(formData: FormData) {
     data: { passwordHash, debeCambiarPassword: false },
   });
 
+  await unstable_update({ debeCambiarPassword: false } as unknown as Parameters<typeof unstable_update>[0]);
   redirect("/admin");
 }

@@ -1,8 +1,15 @@
-import { cambiarPasswordTutor } from "@/lib/actions-portal";
+"use client";
+
+import { useActionState } from "react";
+import { cambiarPasswordTutor, type EstadoCambioPassword } from "@/lib/actions-portal";
 import { BotonGuardar } from "@/components/BotonGuardar";
 import { PasswordInput } from "@/components/PasswordInput";
 
+const estadoInicial: EstadoCambioPassword = {};
+
 export default function CambiarPasswordPortalPage() {
+  const [estado, accion] = useActionState(cambiarPasswordTutor, estadoInicial);
+
   return (
     <div className="mx-auto max-w-sm rounded-3xl border border-[var(--color-line)] bg-white p-8">
       <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--color-ink)]">
@@ -12,7 +19,7 @@ export default function CambiarPasswordPortalPage() {
         Por seguridad debes cambiar la contraseña temporal antes de continuar.
       </p>
 
-      <form action={cambiarPasswordTutor} className="mt-6">
+      <form action={accion} className="mt-6">
         <label className="block text-sm font-semibold text-[var(--color-ink)]">
           Contraseña actual
           <PasswordInput
@@ -33,6 +40,10 @@ export default function CambiarPasswordPortalPage() {
             className="mt-1.5 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-paper-dark)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--color-green)] focus:bg-white focus:ring-4 focus:ring-[var(--color-green)]/10"
           />
         </label>
+
+        {estado.error && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{estado.error}</p>
+        )}
 
         <BotonGuardar
           textoGuardando="Cambiando…"
