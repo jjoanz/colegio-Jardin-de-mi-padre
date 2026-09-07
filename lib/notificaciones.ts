@@ -179,6 +179,29 @@ export async function notificarAccesoPanel(params: {
   });
 }
 
+export async function notificarNuevoPagoReportado(params: {
+  nombreTutor: string;
+  nombreEstudiante: string;
+  descripcion: string;
+  monto: number;
+}): Promise<void> {
+  if (!CORREO_COLEGIO) return;
+  await enviarCorreo({
+    to: CORREO_COLEGIO,
+    subject: `Pago reportado por un padre: ${params.nombreEstudiante}`,
+    html: plantillaBase(
+      "Pago reportado desde el portal de padres",
+      `<p><strong>${params.nombreTutor}</strong> reportó un pago para
+       <strong>${params.nombreEstudiante}</strong>, pendiente de confirmar:</p>
+       <ul>
+         <li><strong>Concepto:</strong> ${params.descripcion}</li>
+         <li><strong>Monto reportado:</strong> ${formatoMoneda(params.monto)}</li>
+       </ul>
+       <p>Revísalo en el panel administrativo, sección Pagos → Pagos reportados por padres.</p>`
+    ),
+  });
+}
+
 export async function notificarCargoGenerado(params: {
   estudianteId: string;
   descripcion: string;

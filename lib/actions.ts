@@ -6,6 +6,7 @@ import { requierePermiso } from "@/lib/permisos";
 import { generarCargosPendientesAhora } from "@/lib/generacion-cargos";
 import { notificarResultadoSolicitud, notificarReciboPago, notificarAccesoPortal } from "@/lib/notificaciones";
 import { otorgarAccesoTutor } from "@/lib/portal-acceso";
+import { crearPagoYFactura } from "@/lib/pagos";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import {
@@ -61,12 +62,6 @@ async function siguienteNumeroExpedienteEstudiante(tx: Prisma.TransactionClient)
 async function siguienteNumeroExpedienteTutor(tx: Prisma.TransactionClient) {
   const total = await tx.tutor.count();
   return `TUT-${String(total + 1).padStart(6, "0")}`;
-}
-
-async function siguienteNumeroFactura(tx: Prisma.TransactionClient) {
-  const anio = new Date().getFullYear();
-  const total = await tx.factura.count();
-  return `FAC-${anio}-${String(total + 1).padStart(6, "0")}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -787,54 +782,20 @@ export async function registrarPagosMultiples(formData: FormData) {
 
       // Nunca se cobra de más, aunque el monto pedido sea mayor al saldo real.
       const monto = Math.min(montoSolicitado, pendienteReal);
-      const totalPagadoDespues = totalPagadoAntes + monto;
-      const tipoPago: TipoPago = totalPagadoDespues >= Number(cargo.monto) ? "PAGO_TOTAL" : "ABONO";
 
-      const pago = await tx.pago.create({
-        data: {
-          cargoId,
-          cuentaId,
-          monto,
-          tipoPago,
-          metodo,
-          referencia,
-          notas,
-          registradoPorId: usuario.id,
-        },
+      const { factura, estudianteId, descripcion } = await crearPagoYFactura(tx, {
+        cargoId,
+        cuentaId,
+        monto,
+        metodo,
+        referencia,
+        notas,
+        registradoPorId: usuario.id,
       });
-
-      const nuevoEstado: EstadoCargo = totalPagadoDespues >= Number(cargo.monto) ? "PAGADO" : "PARCIAL";
-      await tx.cargo.update({ where: { id: cargoId }, data: { estado: nuevoEstado } });
-
-      const factura = await tx.factura.create({
-        data: {
-          numeroFactura: await siguienteNumeroFactura(tx),
-          pagoId: pago.id,
-          estudianteId: cargo.estudianteId,
-          concepto: cargo.descripcion,
-          montoSubtotal: monto,
-          itbis: 0,
-          montoTotal: monto,
-        },
-      });
-
-      // Si se eligió una cuenta bancaria, este pago también se acredita ahí.
-      if (cuentaId) {
-        await tx.movimientoBancario.create({
-          data: {
-            cuentaId,
-            tipo: "DEPOSITO",
-            monto,
-            descripcion: `Pago recibido: ${cargo.descripcion}`,
-            pagoId: pago.id,
-            registradoPorId: usuario.id,
-          },
-        });
-      }
 
       pagosRealizados.push({
-        estudianteId: cargo.estudianteId,
-        descripcion: cargo.descripcion,
+        estudianteId,
+        descripcion,
         monto,
         numeroFactura: factura.numeroFactura,
       });
@@ -862,73 +823,17 @@ export async function registrarPago(formData: FormData) {
   const cuentaId = String(formData.get("cuentaId") || "") || null;
 
   const resultado = await prisma.$transaction(async (tx) => {
-    const cargoAntes = await tx.cargo.findUniqueOrThrow({
-      where: { id: cargoId },
-      include: { pagos: true },
-    });
-    const totalPagadoAntes = cargoAntes.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
-    const totalPagadoDespues = totalPagadoAntes + monto;
-
-    // Si este pago completa el 100% del cargo, es "pago total"; si deja saldo, es "abono".
-    const tipoPago: TipoPago =
-      totalPagadoDespues >= Number(cargoAntes.monto) ? "PAGO_TOTAL" : "ABONO";
-
-    const pago = await tx.pago.create({
-      data: {
-        cargoId,
-        cuentaId,
-        monto,
-        tipoPago,
-        metodo: String(formData.get("metodo")) as MetodoPago,
-        referencia: String(formData.get("referencia") || ""),
-        notas: String(formData.get("notas") || ""),
-        registradoPorId: usuario.id,
-      },
+    const { factura, estudianteId, descripcion } = await crearPagoYFactura(tx, {
+      cargoId,
+      cuentaId,
+      monto,
+      metodo: String(formData.get("metodo")) as MetodoPago,
+      referencia: String(formData.get("referencia") || ""),
+      notas: String(formData.get("notas") || ""),
+      registradoPorId: usuario.id,
     });
 
-    const nuevoEstado: EstadoCargo =
-      totalPagadoDespues >= Number(cargoAntes.monto)
-        ? EstadoCargo.PAGADO
-        : totalPagadoDespues > 0
-        ? EstadoCargo.PARCIAL
-        : EstadoCargo.PENDIENTE;
-
-    await tx.cargo.update({ where: { id: cargoId }, data: { estado: nuevoEstado } });
-
-    // Cada pago recibido genera su propia factura, vinculada al expediente del alumno.
-    // Los servicios educativos están exentos de ITBIS en RD, por eso el impuesto es 0
-    // por defecto (se deja el campo listo para cuando aplique otro tipo de cargo).
-    const factura = await tx.factura.create({
-      data: {
-        numeroFactura: await siguienteNumeroFactura(tx),
-        pagoId: pago.id,
-        estudianteId: cargoAntes.estudianteId,
-        concepto: cargoAntes.descripcion,
-        montoSubtotal: monto,
-        itbis: 0,
-        montoTotal: monto,
-      },
-    });
-
-    // Si se eligió una cuenta bancaria, este pago también se acredita ahí.
-    if (cuentaId) {
-      await tx.movimientoBancario.create({
-        data: {
-          cuentaId,
-          tipo: "DEPOSITO",
-          monto,
-          descripcion: `Pago recibido: ${cargoAntes.descripcion}`,
-          pagoId: pago.id,
-          registradoPorId: usuario.id,
-        },
-      });
-    }
-
-    return {
-      estudianteId: cargoAntes.estudianteId,
-      descripcion: cargoAntes.descripcion,
-      numeroFactura: factura.numeroFactura,
-    };
+    return { estudianteId, descripcion, numeroFactura: factura.numeroFactura };
   });
 
   await notificarReciboPago({ ...resultado, monto });

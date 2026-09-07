@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { ReportarPagoForm } from "@/components/ReportarPagoForm";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,20 @@ const ETIQUETA_ESTADO: Record<string, string> = {
   PARCIAL: "Parcial",
   VENCIDO: "Vencido",
   ANULADO: "Anulado",
+};
+
+const ETIQUETA_ESTADO_MATRICULA: Record<string, string> = {
+  ACTIVA: "Activa",
+  RETIRADA: "Retirada",
+  PROMOVIDA: "Promovida",
+  REPROBADA: "Reprobada",
+};
+
+const ETIQUETA_ASISTENCIA: Record<string, string> = {
+  PRESENTE: "Presente",
+  AUSENTE: "Ausente",
+  TARDANZA: "Tardanza",
+  JUSTIFICADO: "Justificado",
 };
 
 export default async function PortalEstudiantePage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,10 +43,22 @@ export default async function PortalEstudiantePage({ params }: { params: Promise
     where: { id },
     include: {
       cargos: {
-        include: { pagos: true, anioEscolar: true, beca: true },
+        include: {
+          pagos: true,
+          anioEscolar: true,
+          beca: true,
+          pagosReportados: { where: { estado: "PENDIENTE" } },
+        },
         orderBy: [{ anioEscolarId: "desc" }, { numeroCuota: "asc" }, { fechaEmision: "asc" }],
       },
       facturas: { orderBy: { fechaEmision: "desc" } },
+      matriculas: {
+        include: { aula: { include: { nivel: true } }, anioEscolar: true },
+        orderBy: { anioEscolar: { fechaInicio: "desc" } },
+      },
+      asistencias: {
+        include: { aula: { include: { anioEscolar: true } } },
+      },
     },
   });
   if (!estudiante) notFound();
@@ -44,6 +71,15 @@ export default async function PortalEstudiantePage({ params }: { params: Promise
     grupos.get(clave)!.cargos.push(cargo);
   }
 
+  // Resumen de asistencia por año escolar (a través del aula donde se tomó).
+  const asistenciaPorAnio = new Map<string, Record<string, number>>();
+  for (const a of estudiante.asistencias) {
+    const nombreAnio = a.aula.anioEscolar.nombre;
+    if (!asistenciaPorAnio.has(nombreAnio)) asistenciaPorAnio.set(nombreAnio, {});
+    const conteo = asistenciaPorAnio.get(nombreAnio)!;
+    conteo[a.estado] = (conteo[a.estado] ?? 0) + 1;
+  }
+
   return (
     <div>
       <Link href="/portal" className="text-sm font-bold text-[var(--color-green)]">
@@ -54,6 +90,44 @@ export default async function PortalEstudiantePage({ params }: { params: Promise
         {estudiante.nombre} {estudiante.apellido}
       </h1>
       <p className="mt-1 text-[var(--color-ink-soft)]">Exp. {estudiante.numeroExpediente}</p>
+
+      <h2 className="mt-8 text-lg font-semibold text-[var(--color-ink)]">Historial académico</h2>
+      <div className="mt-3 space-y-2">
+        {estudiante.matriculas.map((m) => {
+          const asistencia = asistenciaPorAnio.get(m.anioEscolar.nombre);
+          const totalAsistencia = asistencia
+            ? Object.values(asistencia).reduce((s, n) => s + n, 0)
+            : 0;
+          return (
+            <div key={m.id} className="rounded-lg border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="font-semibold text-[var(--color-ink)]">{m.anioEscolar.nombre}</p>
+                  <p className="text-xs text-[var(--color-ink-soft)]">
+                    {m.aula.nivel.nombre} · Aula {m.aula.nombre}
+                  </p>
+                </div>
+                <span className="rounded-full bg-[var(--color-paper-dark)] px-2.5 py-1 text-xs font-semibold text-[var(--color-ink)]">
+                  {ETIQUETA_ESTADO_MATRICULA[m.estado] ?? m.estado}
+                </span>
+              </div>
+              {totalAsistencia > 0 && (
+                <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
+                  Asistencia:{" "}
+                  {Object.entries(asistencia!)
+                    .map(([estado, cantidad]) => `${ETIQUETA_ASISTENCIA[estado] ?? estado}: ${cantidad}`)
+                    .join(" · ")}
+                </p>
+              )}
+            </div>
+          );
+        })}
+        {estudiante.matriculas.length === 0 && (
+          <p className="rounded-2xl border border-[var(--color-line)] bg-white p-8 text-center text-[var(--color-ink-soft)]">
+            Aún no hay matrículas registradas.
+          </p>
+        )}
+      </div>
 
       <h2 className="mt-8 text-lg font-semibold text-[var(--color-ink)]">Estado de cuenta anual</h2>
       <div className="mt-3 space-y-6">
@@ -95,30 +169,40 @@ export default async function PortalEstudiantePage({ params }: { params: Promise
                 {grupo.cargos.map((c) => {
                   const pagadoCargo = c.pagos.reduce((s, p) => s + Number(p.monto), 0);
                   const saldoCargo = Number(c.monto) - pagadoCargo;
+                  const reportadoPendiente = c.pagosReportados[0];
                   return (
-                    <div
-                      key={c.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--color-paper-dark)] px-4 py-2.5 text-sm"
-                    >
-                      <div>
-                        <p className="font-semibold text-[var(--color-ink)]">
-                          {c.descripcion}
-                          {c.numeroCuota && c.totalCuotas && ` (Cuota ${c.numeroCuota} de ${c.totalCuotas})`}
-                        </p>
-                        <p className="text-xs text-[var(--color-ink-soft)]">
-                          {c.beca && `Beca ${Number(c.beca.porcentaje)}% aplicada · `}
-                          Vence: {c.fechaVencimiento ? c.fechaVencimiento.toLocaleDateString("es-DO") : "—"}
-                        </p>
+                    <div key={c.id} className="rounded-lg bg-[var(--color-paper-dark)] px-4 py-2.5 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold text-[var(--color-ink)]">
+                            {c.descripcion}
+                            {c.numeroCuota && c.totalCuotas && ` (Cuota ${c.numeroCuota} de ${c.totalCuotas})`}
+                          </p>
+                          <p className="text-xs text-[var(--color-ink-soft)]">
+                            {c.beca && `Beca ${Number(c.beca.porcentaje)}% aplicada · `}
+                            Vence: {c.fechaVencimiento ? c.fechaVencimiento.toLocaleDateString("es-DO") : "—"}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono">
+                            RD$ {Number(c.monto).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-xs text-[var(--color-ink-soft)]">
+                            {ETIQUETA_ESTADO[c.estado]} · Saldo RD${" "}
+                            {saldoCargo.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-mono">
-                          RD$ {Number(c.monto).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
-                        </p>
-                        <p className="text-xs text-[var(--color-ink-soft)]">
-                          {ETIQUETA_ESTADO[c.estado]} · Saldo RD${" "}
-                          {saldoCargo.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
+                      {saldoCargo > 0 &&
+                        (reportadoPendiente ? (
+                          <p className="mt-2 text-right text-xs font-semibold text-[var(--color-green)]">
+                            Pago reportado, esperando confirmación
+                          </p>
+                        ) : (
+                          <div className="mt-2 flex flex-col items-end">
+                            <ReportarPagoForm cargoId={c.id} saldoSugerido={saldoCargo} />
+                          </div>
+                        ))}
                     </div>
                   );
                 })}

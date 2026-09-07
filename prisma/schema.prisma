@@ -85,6 +85,7 @@ model AdminUser {
   publicaciones Publicacion[] @relation("PublicacionesAutor")
   documentosInstitucionalesSubidos DocumentoInstitucional[] @relation("DocumentosInstitucionalesSubidoPor")
   becasAsignadas Beca[] @relation("BecasAsignadasPor")
+  pagosReportadosRevisados PagoReportado[] @relation("PagosReportadosRevisadosPor")
 }
 
 // ---------------------------------------------------------------------------
@@ -506,6 +507,7 @@ model Tutor {
   actualizadoEn DateTime @updatedAt
 
   estudiantes  EstudianteTutor[]
+  pagosReportados PagoReportado[]
 
   @@index([email])
   @@index([cedula])
@@ -732,6 +734,7 @@ model Cargo {
   anioEscolar   AnioEscolar?  @relation(fields: [anioEscolarId], references: [id])
   beca          Beca?         @relation(fields: [becaId], references: [id])
   pagos         Pago[]
+  pagosReportados PagoReportado[]
 
   @@index([estudianteId, estado])
   @@index([estado])
@@ -797,9 +800,46 @@ model Pago {
   registradoPor   AdminUser? @relation("PagoRegistradoPor", fields: [registradoPorId], references: [id])
   factura         Factura?
   movimientos     MovimientoBancario[] @relation("MovimientosDePago")
+  reportado       PagoReportado?
 
   @@index([cargoId])
   @@index([cuentaId])
+}
+
+// ---------------------------------------------------------------------------
+// PAGOS REPORTADOS POR PADRES DESDE EL PORTAL (pendientes de confirmar por
+// el personal — mientras no haya un procesador de pagos en línea real)
+// ---------------------------------------------------------------------------
+
+enum EstadoPagoReportado {
+  PENDIENTE
+  CONFIRMADO
+  RECHAZADO
+}
+
+model PagoReportado {
+  id             String              @id @default(cuid())
+  cargoId        String
+  tutorId        String
+  monto          Decimal             @db.Decimal(10, 2)
+  metodo         MetodoPago
+  referencia     String?
+  comprobanteUrl String?
+  notasTutor     String?
+  estado         EstadoPagoReportado @default(PENDIENTE)
+  notasRevision  String?
+  creadoEn       DateTime            @default(now())
+  revisadoEn     DateTime?
+  revisadoPorId  String?
+  pagoId         String?             @unique // se llena al confirmar
+
+  cargo          Cargo      @relation(fields: [cargoId], references: [id], onDelete: Cascade)
+  tutor          Tutor      @relation(fields: [tutorId], references: [id])
+  revisadoPor    AdminUser? @relation("PagosReportadosRevisadosPor", fields: [revisadoPorId], references: [id])
+  pago           Pago?      @relation(fields: [pagoId], references: [id])
+
+  @@index([cargoId])
+  @@index([estado])
 }
 
 // ---------------------------------------------------------------------------

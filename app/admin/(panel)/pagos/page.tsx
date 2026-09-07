@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { registrarPago } from "@/lib/actions";
+import { confirmarPagoReportado, rechazarPagoReportado } from "@/lib/actions-pagos-reportados";
 import { PagoCargoSelect } from "@/components/PagoCargoSelect";
 import { CobroPorCedula } from "@/components/CobroPorCedula";
 import { BotonGuardar } from "@/components/BotonGuardar";
@@ -7,7 +8,7 @@ import { BotonGuardar } from "@/components/BotonGuardar";
 export const dynamic = "force-dynamic";
 
 export default async function PagosPage() {
-  const [pagos, cargosPendientesRaw, cuentas] = await Promise.all([
+  const [pagos, cargosPendientesRaw, cuentas, pagosReportados] = await Promise.all([
     prisma.pago.findMany({
       orderBy: { fechaPago: "desc" },
       include: { cargo: { include: { estudiante: true } }, registradoPor: true, cuenta: true },
@@ -19,6 +20,11 @@ export default async function PagosPage() {
       orderBy: { fechaEmision: "asc" },
     }),
     prisma.cuentaBancaria.findMany({ where: { activa: true }, orderBy: { nombre: "asc" } }),
+    prisma.pagoReportado.findMany({
+      where: { estado: "PENDIENTE" },
+      include: { cargo: { include: { estudiante: true } }, tutor: true },
+      orderBy: { creadoEn: "asc" },
+    }),
   ]);
 
   const cargosPendientes = cargosPendientesRaw.map((c) => {
@@ -45,6 +51,73 @@ export default async function PagosPage() {
           cuentas={cuentas.map((c) => ({ id: c.id, nombre: c.nombre, banco: c.banco }))}
         />
       </div>
+
+      {pagosReportados.length > 0 && (
+        <section className="mt-6 rounded-2xl border border-[var(--color-line)] bg-white p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
+            Pagos reportados por padres ({pagosReportados.length} pendiente
+            {pagosReportados.length === 1 ? "" : "s"} de confirmar)
+          </p>
+          <div className="mt-3 space-y-3">
+            {pagosReportados.map((r) => (
+              <div key={r.id} className="rounded-xl border border-[var(--color-line)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-[var(--color-ink)]">
+                      {r.cargo.estudiante.nombre} {r.cargo.estudiante.apellido} — {r.cargo.descripcion}
+                    </p>
+                    <p className="text-xs text-[var(--color-ink-soft)]">
+                      Reportado por {r.tutor.nombre} {r.tutor.apellido} · {r.metodo.replace(/_/g, " ")}
+                      {r.referencia && ` · Ref: ${r.referencia}`}
+                    </p>
+                    {r.notasTutor && (
+                      <p className="mt-1 text-xs italic text-[var(--color-ink-soft)]">&ldquo;{r.notasTutor}&rdquo;</p>
+                    )}
+                    {r.comprobanteUrl && (
+                      <a
+                        href={r.comprobanteUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-xs font-bold text-[var(--color-green)]"
+                      >
+                        Ver comprobante →
+                      </a>
+                    )}
+                  </div>
+                  <p className="font-mono font-bold">
+                    RD$ {Number(r.monto).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <form action={confirmarPagoReportado}>
+                    <input type="hidden" name="pagoReportadoId" value={r.id} />
+                    <BotonGuardar
+                      textoGuardado="✓ Confirmado"
+                      className="rounded-lg bg-[var(--color-green)] px-4 py-1.5 text-xs font-bold text-white disabled:opacity-60"
+                    >
+                      Confirmar pago
+                    </BotonGuardar>
+                  </form>
+                  <form action={rechazarPagoReportado} className="flex items-center gap-2">
+                    <input type="hidden" name="pagoReportadoId" value={r.id} />
+                    <input
+                      name="notasRevision"
+                      placeholder="Motivo del rechazo (opcional)"
+                      className="rounded-lg border border-[var(--color-line)] px-2.5 py-1.5 text-xs outline-none focus:border-[var(--color-green)]"
+                    />
+                    <BotonGuardar
+                      textoGuardado="✓ Rechazado"
+                      className="rounded-lg border border-[var(--color-line)] px-4 py-1.5 text-xs font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)] disabled:opacity-60"
+                    >
+                      Rechazar
+                    </BotonGuardar>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="mt-8 grid gap-8 md:grid-cols-[1fr_360px]">
         <div className="overflow-hidden rounded-2xl border border-[var(--color-line)] bg-white">
