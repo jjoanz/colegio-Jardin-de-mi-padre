@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { crearNivel, actualizarNivel, eliminarNivel } from "@/lib/actions";
-import { crearGrado, actualizarGrado, crearCargoAdicional, actualizarCargoAdicional } from "@/lib/actions-grados";
+import {
+  crearGrado,
+  actualizarGrado,
+  eliminarGrado,
+  crearCargoAdicional,
+  actualizarCargoAdicional,
+  eliminarCargoAdicional,
+} from "@/lib/actions-grados";
 import { BotonGuardar } from "@/components/BotonGuardar";
 import { FormEliminarConEstado } from "@/components/FormEliminarConEstado";
 
@@ -163,6 +170,19 @@ export default async function NivelesPage() {
                         </BotonGuardar>
                       </form>
 
+                      <div className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] p-3">
+                        <p className="text-xs text-[var(--color-ink-soft)]">
+                          Solo se puede eliminar si no tiene estudiantes asociados.
+                        </p>
+                        <FormEliminarConEstado
+                          action={eliminarGrado}
+                          idFieldName="gradoId"
+                          idValue={g.id}
+                          label="Eliminar grado"
+                          className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                        />
+                      </div>
+
                       <div className="border-t border-[var(--color-line)] p-3">
                         <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">
                           Costos adicionales de {g.nombre}
@@ -204,6 +224,15 @@ export default async function NivelesPage() {
                                 </label>
                                 <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-1.5 text-xs font-bold text-white disabled:opacity-60 md:col-span-2">
                                   Guardar cambios
+                                </BotonGuardar>
+                              </form>
+                              <form action={eliminarCargoAdicional} className="border-t border-[var(--color-line)] p-3">
+                                <input type="hidden" name="cargoAdicionalId" value={c.id} />
+                                <BotonGuardar
+                                  textoGuardado="✓ Eliminado"
+                                  className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                                >
+                                  Eliminar costo adicional
                                 </BotonGuardar>
                               </form>
                             </details>
