@@ -8,6 +8,7 @@ import { requierePermiso } from "@/lib/permisos";
 const RUTA = "/admin/horarios";
 
 export async function crearMateria(formData: FormData) {
+  await requierePermiso("oferta_academica", "crear");
   const nivelIds = formData.getAll("nivelIds").map(String);
   const gradoIds = formData.getAll("gradoIds").map(String);
   await prisma.materia.create({
@@ -23,6 +24,7 @@ export async function crearMateria(formData: FormData) {
 }
 
 export async function actualizarMateria(formData: FormData) {
+  await requierePermiso("oferta_academica", "editar");
   const materiaId = String(formData.get("materiaId"));
   const nivelIds = formData.getAll("nivelIds").map(String);
   const gradoIds = formData.getAll("gradoIds").map(String);

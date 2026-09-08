@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { matricularEstudiante, actualizarEstudiante, asignarBeca, revocarBeca } from "@/lib/actions";
 import { DetalleSolicitud } from "@/components/DetalleSolicitud";
 import { BotonGuardar } from "@/components/BotonGuardar";
@@ -9,6 +10,13 @@ export const dynamic = "force-dynamic";
 
 export default async function EstudianteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const session = await auth();
+  const usuario = session?.user as { permisos?: string[] } | undefined;
+  const permisos = usuario?.permisos ?? [];
+  const puedeEditarEstudiante = permisos.includes("estudiantes:editar");
+  const puedeCrearBeca = permisos.includes("becas:crear");
+  const puedeEditarBeca = permisos.includes("becas:editar");
 
   const estudiante = await prisma.estudiante.findUnique({
     where: { id },
@@ -88,86 +96,100 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
         <div className="space-y-6 lg:col-span-1">
           <section className="rounded-2xl border border-[var(--color-line)] bg-white p-5">
             <h2 className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">Datos</h2>
-            <form action={actualizarEstudiante} className="mt-3 space-y-2 text-sm">
-              <input type="hidden" name="estudianteId" value={estudiante.id} />
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Nombre
-                <input name="nombre" defaultValue={estudiante.nombre} required className={editInputClass} />
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Apellido
-                <input name="apellido" defaultValue={estudiante.apellido} required className={editInputClass} />
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Fecha de nacimiento
-                <input
-                  name="fechaNacimiento"
-                  type="date"
-                  defaultValue={estudiante.fechaNacimiento.toISOString().slice(0, 10)}
-                  required
-                  className={editInputClass}
-                />
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Cédula / acta de nacimiento
-                <input
-                  name="cedulaONum"
-                  defaultValue={estudiante.cedulaONum ?? ""}
-                  placeholder="Cédula o número de acta de nacimiento"
-                  className={editInputClass}
-                />
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Nivel
-                <select name="nivelId" defaultValue={estudiante.nivelId ?? ""} className={editInputClass}>
-                  <option value="">Sin nivel</option>
-                  {niveles.map((n) => (
-                    <option key={n.id} value={n.id}>{n.nombre}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Aula (elige una si cambias de nivel)
-                <select name="aulaId" defaultValue={estudiante.matriculas[0]?.aulaId ?? ""} className={editInputClass}>
-                  <option value="">No cambiar de aula</option>
-                  {aulasDisponibles.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nombre} — {a.nivel.nombre} · {a.tanda} · {a.anioEscolar.nombre}
-                    </option>
-                  ))}
-                </select>
-                <span className="mt-1 block text-[10px] text-[var(--color-ink-soft)]">
-                  El nivel de arriba es solo un dato del expediente — el nivel real del estudiante
-                  (el que se ve en Historial académico) lo da el aula en la que está matriculado.
-                  Elige aquí la nueva aula para que ambos queden sincronizados.
-                </span>
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Matrícula MINERD
-                <input
-                  name="numeroMatriculaMinerd"
-                  defaultValue={estudiante.numeroMatriculaMinerd ?? ""}
-                  placeholder="Se coloca cuando el MINERD la asigna"
-                  className={editInputClass}
-                />
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Estado
-                <select name="estado" defaultValue={estudiante.estado} className={editInputClass}>
-                  <option value="PENDIENTE">Pendiente</option>
-                  <option value="ACTIVO">Activo</option>
-                  <option value="INACTIVO">Inactivo</option>
-                  <option value="RETIRADO">Retirado</option>
-                </select>
-              </label>
-              <label className="block text-xs text-[var(--color-ink-soft)]">
-                Observaciones
-                <textarea name="observaciones" defaultValue={estudiante.observaciones ?? ""} rows={2} className={editInputClass} />
-              </label>
-              <BotonGuardar className="w-full rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
-                Guardar cambios
-              </BotonGuardar>
-            </form>
+            {puedeEditarEstudiante ? (
+              <form action={actualizarEstudiante} className="mt-3 space-y-2 text-sm">
+                <input type="hidden" name="estudianteId" value={estudiante.id} />
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Nombre
+                  <input name="nombre" defaultValue={estudiante.nombre} required className={editInputClass} />
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Apellido
+                  <input name="apellido" defaultValue={estudiante.apellido} required className={editInputClass} />
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Fecha de nacimiento
+                  <input
+                    name="fechaNacimiento"
+                    type="date"
+                    defaultValue={estudiante.fechaNacimiento.toISOString().slice(0, 10)}
+                    required
+                    className={editInputClass}
+                  />
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Cédula / acta de nacimiento
+                  <input
+                    name="cedulaONum"
+                    defaultValue={estudiante.cedulaONum ?? ""}
+                    placeholder="Cédula o número de acta de nacimiento"
+                    className={editInputClass}
+                  />
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Nivel
+                  <select name="nivelId" defaultValue={estudiante.nivelId ?? ""} className={editInputClass}>
+                    <option value="">Sin nivel</option>
+                    {niveles.map((n) => (
+                      <option key={n.id} value={n.id}>{n.nombre}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Aula (elige una si cambias de nivel)
+                  <select name="aulaId" defaultValue={estudiante.matriculas[0]?.aulaId ?? ""} className={editInputClass}>
+                    <option value="">No cambiar de aula</option>
+                    {aulasDisponibles.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nombre} — {a.nivel.nombre} · {a.tanda} · {a.anioEscolar.nombre}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mt-1 block text-[10px] text-[var(--color-ink-soft)]">
+                    El nivel de arriba es solo un dato del expediente — el nivel real del estudiante
+                    (el que se ve en Historial académico) lo da el aula en la que está matriculado.
+                    Elige aquí la nueva aula para que ambos queden sincronizados.
+                  </span>
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Matrícula MINERD
+                  <input
+                    name="numeroMatriculaMinerd"
+                    defaultValue={estudiante.numeroMatriculaMinerd ?? ""}
+                    placeholder="Se coloca cuando el MINERD la asigna"
+                    className={editInputClass}
+                  />
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Estado
+                  <select name="estado" defaultValue={estudiante.estado} className={editInputClass}>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="ACTIVO">Activo</option>
+                    <option value="INACTIVO">Inactivo</option>
+                    <option value="RETIRADO">Retirado</option>
+                  </select>
+                </label>
+                <label className="block text-xs text-[var(--color-ink-soft)]">
+                  Observaciones
+                  <textarea name="observaciones" defaultValue={estudiante.observaciones ?? ""} rows={2} className={editInputClass} />
+                </label>
+                <BotonGuardar className="w-full rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
+                  Guardar cambios
+                </BotonGuardar>
+              </form>
+            ) : (
+              <div className="mt-3 space-y-1.5 text-sm text-[var(--color-ink)]">
+                <p><span className="text-[var(--color-ink-soft)]">Nombre:</span> {estudiante.nombre} {estudiante.apellido}</p>
+                <p><span className="text-[var(--color-ink-soft)]">Fecha de nacimiento:</span> {estudiante.fechaNacimiento.toLocaleDateString("es-DO")}</p>
+                <p><span className="text-[var(--color-ink-soft)]">Cédula / acta:</span> {estudiante.cedulaONum || "—"}</p>
+                <p><span className="text-[var(--color-ink-soft)]">Nivel:</span> {estudiante.nivel?.nombre || "Sin nivel"}</p>
+                <p><span className="text-[var(--color-ink-soft)]">Matrícula MINERD:</span> {estudiante.numeroMatriculaMinerd || "—"}</p>
+                <p><span className="text-[var(--color-ink-soft)]">Estado:</span> {estudiante.estado}</p>
+                {estudiante.observaciones && (
+                  <p><span className="text-[var(--color-ink-soft)]">Observaciones:</span> {estudiante.observaciones}</p>
+                )}
+              </div>
+            )}
           </section>
 
           <section className="rounded-2xl border border-[var(--color-line)] bg-white p-5">
@@ -242,51 +264,55 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
                       )}
                     </p>
                   )}
-                  <form action={revocarBeca} className="mt-2">
-                    <input type="hidden" name="becaId" value={becaActiva.id} />
-                    <BotonGuardar
-                      textoGuardado="✓ Revocada"
-                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
-                    >
-                      Revocar beca
-                    </BotonGuardar>
-                  </form>
+                  {puedeEditarBeca && (
+                    <form action={revocarBeca} className="mt-2">
+                      <input type="hidden" name="becaId" value={becaActiva.id} />
+                      <BotonGuardar
+                        textoGuardado="✓ Revocada"
+                        className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        Revocar beca
+                      </BotonGuardar>
+                    </form>
+                  )}
                 </div>
               ) : (
                 <p className="mt-2 text-sm text-[var(--color-ink-soft)]">Sin beca activa.</p>
               );
             })()}
-            <details className="mt-3">
-              <summary className="cursor-pointer text-xs font-bold text-[var(--color-green)]">
-                Asignar nueva beca
-              </summary>
-              <form action={asignarBeca} encType="multipart/form-data" className="mt-2 space-y-2">
-                <input type="hidden" name="estudianteId" value={estudiante.id} />
-                <label className="block text-xs text-[var(--color-ink-soft)]">
-                  Porcentaje (1-100)
-                  <input name="porcentaje" type="number" min="1" max="100" step="0.01" required className={editInputClass} />
-                </label>
-                <label className="block text-xs text-[var(--color-ink-soft)]">
-                  Motivo (opcional)
-                  <input name="motivo" placeholder="Beca deportiva, hijo de empleado, etc." className={editInputClass} />
-                </label>
-                <label className="flex items-center gap-2 text-xs text-[var(--color-ink-soft)]">
-                  <input name="esExterna" type="checkbox" className="h-4 w-4" />
-                  Es una beca de una institución externa
-                </label>
-                <label className="block text-xs text-[var(--color-ink-soft)]">
-                  Institución externa (si aplica)
-                  <input name="institucionExterna" placeholder="Fundación, gobierno, empresa, etc." className={editInputClass} />
-                </label>
-                <label className="block text-xs text-[var(--color-ink-soft)]">
-                  Carta compromiso (si aplica)
-                  <input name="cartaCompromiso" type="file" accept="image/*,.pdf" className={editInputClass} />
-                </label>
-                <BotonGuardar textoGuardado="✓ Asignada" className="w-full rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
-                  Asignar beca
-                </BotonGuardar>
-              </form>
-            </details>
+            {puedeCrearBeca && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs font-bold text-[var(--color-green)]">
+                  Asignar nueva beca
+                </summary>
+                <form action={asignarBeca} encType="multipart/form-data" className="mt-2 space-y-2">
+                  <input type="hidden" name="estudianteId" value={estudiante.id} />
+                  <label className="block text-xs text-[var(--color-ink-soft)]">
+                    Porcentaje (1-100)
+                    <input name="porcentaje" type="number" min="1" max="100" step="0.01" required className={editInputClass} />
+                  </label>
+                  <label className="block text-xs text-[var(--color-ink-soft)]">
+                    Motivo (opcional)
+                    <input name="motivo" placeholder="Beca deportiva, hijo de empleado, etc." className={editInputClass} />
+                  </label>
+                  <label className="flex items-center gap-2 text-xs text-[var(--color-ink-soft)]">
+                    <input name="esExterna" type="checkbox" className="h-4 w-4" />
+                    Es una beca de una institución externa
+                  </label>
+                  <label className="block text-xs text-[var(--color-ink-soft)]">
+                    Institución externa (si aplica)
+                    <input name="institucionExterna" placeholder="Fundación, gobierno, empresa, etc." className={editInputClass} />
+                  </label>
+                  <label className="block text-xs text-[var(--color-ink-soft)]">
+                    Carta compromiso (si aplica)
+                    <input name="cartaCompromiso" type="file" accept="image/*,.pdf" className={editInputClass} />
+                  </label>
+                  <BotonGuardar textoGuardado="✓ Asignada" className="w-full rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
+                    Asignar beca
+                  </BotonGuardar>
+                </form>
+              </details>
+            )}
             {estudiante.becas.length > 0 && (
               <details className="mt-3">
                 <summary className="cursor-pointer text-xs font-bold text-[var(--color-ink-soft)]">
@@ -304,32 +330,34 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
             )}
           </section>
 
-          <section className="rounded-2xl border border-[var(--color-line)] bg-white p-5">
-            <h2 className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">Matricular / cambiar aula</h2>
-            <form action={matricularEstudiante} className="mt-3 space-y-2">
-              <input type="hidden" name="estudianteId" value={estudiante.id} />
-              <select name="aulaId" required className="w-full rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm">
-                <option value="">Seleccionar aula…</option>
-                {aulasDisponibles.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nombre} — {a.nivel.nombre} · {a.tanda} · {a.anioEscolar.nombre}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="planPago"
-                defaultValue={estudiante.matriculas[0]?.planPago ?? "DIEZ_CUOTAS"}
-                className="w-full rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm"
-              >
-                <option value="PAGO_UNICO">Pago único</option>
-                <option value="DOS_PAGOS">Dos pagos</option>
-                <option value="DIEZ_CUOTAS">Diez cuotas (mensual)</option>
-              </select>
-              <BotonGuardar textoGuardado="✓ Matriculado" className="w-full rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
-                Guardar matrícula
-              </BotonGuardar>
-            </form>
-          </section>
+          {puedeEditarEstudiante && (
+            <section className="rounded-2xl border border-[var(--color-line)] bg-white p-5">
+              <h2 className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">Matricular / cambiar aula</h2>
+              <form action={matricularEstudiante} className="mt-3 space-y-2">
+                <input type="hidden" name="estudianteId" value={estudiante.id} />
+                <select name="aulaId" required className="w-full rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm">
+                  <option value="">Seleccionar aula…</option>
+                  {aulasDisponibles.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nombre} — {a.nivel.nombre} · {a.tanda} · {a.anioEscolar.nombre}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  name="planPago"
+                  defaultValue={estudiante.matriculas[0]?.planPago ?? "DIEZ_CUOTAS"}
+                  className="w-full rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm"
+                >
+                  <option value="PAGO_UNICO">Pago único</option>
+                  <option value="DOS_PAGOS">Dos pagos</option>
+                  <option value="DIEZ_CUOTAS">Diez cuotas (mensual)</option>
+                </select>
+                <BotonGuardar textoGuardado="✓ Matriculado" className="w-full rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
+                  Guardar matrícula
+                </BotonGuardar>
+              </form>
+            </section>
+          )}
         </div>
 
         {/* Columna derecha: historial académico, cargos, facturas */}

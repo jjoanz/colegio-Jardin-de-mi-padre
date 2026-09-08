@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { actualizarTutor, otorgarAccesoTutorManual } from "@/lib/actions";
 import { BotonGuardar } from "@/components/BotonGuardar";
 
 export const dynamic = "force-dynamic";
 
 export default async function PadresPage() {
+  const session = await auth();
+  const usuario = session?.user as { permisos?: string[] } | undefined;
+  const permisos = usuario?.permisos ?? [];
+  const puedeEditar = permisos.includes("padres:editar");
+
   const tutores = await prisma.tutor.findMany({
     orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
     include: { estudiantes: { include: { estudiante: true } } },
@@ -19,15 +25,18 @@ export default async function PadresPage() {
             Padres, madres y tutores
           </h1>
           <p className="mt-1 text-[var(--color-ink-soft)]">
-            Cuando un padre, madre o tutor tiene varios hijos en el colegio, aquí se ven todos juntos. Haz clic para editar sus datos.
+            Cuando un padre, madre o tutor tiene varios hijos en el colegio, aquí se ven todos juntos.
+            {puedeEditar && " Haz clic para editar sus datos."}
           </p>
         </div>
-        <Link
-          href="/admin/padres/importar"
-          className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
-        >
-          Importar en lote
-        </Link>
+        {puedeEditar && (
+          <Link
+            href="/admin/padres/importar"
+            className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
+          >
+            Importar en lote
+          </Link>
+        )}
       </div>
 
       <div className="mt-8 space-y-3">
@@ -59,62 +68,73 @@ export default async function PadresPage() {
                 ))}
               </div>
             )}
-            <form action={actualizarTutor} className="grid gap-3 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 md:grid-cols-2">
-              <input type="hidden" name="tutorId" value={t.id} />
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Nombre
-                <input name="nombre" defaultValue={t.nombre} required className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Apellido
-                <input name="apellido" defaultValue={t.apellido} className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Cédula
-                <input name="cedula" defaultValue={t.cedula ?? ""} className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Correo
-                <input name="email" type="email" defaultValue={t.email} required className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Teléfono
-                <input name="telefono" defaultValue={t.telefono} required className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Teléfono alterno
-                <input name="telefonoAlt" defaultValue={t.telefonoAlt ?? ""} className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Dirección
-                <input name="direccion" defaultValue={t.direccion ?? ""} className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Ocupación
-                <input name="ocupacion" defaultValue={t.ocupacion ?? ""} className={inputClass} />
-              </label>
-              <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-2">
-                Guardar cambios
-              </BotonGuardar>
-            </form>
-            <form
-              action={otorgarAccesoTutorManual}
-              className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-line)] p-4"
-            >
-              <input type="hidden" name="tutorId" value={t.id} />
-              <p className="text-xs text-[var(--color-ink-soft)]">
-                Acceso al portal:{" "}
-                <span className={t.passwordHash ? "font-semibold text-[var(--color-green)]" : "font-semibold text-red-600"}>
-                  {t.passwordHash ? "Ya tiene acceso" : "Todavía no tiene acceso"}
-                </span>
-              </p>
-              <BotonGuardar
-                textoGuardado="✓ Enviado"
-                className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
-              >
-                {t.passwordHash ? "Reenviar credenciales" : "Otorgar acceso"}
-              </BotonGuardar>
-            </form>
+            {puedeEditar ? (
+              <>
+                <form action={actualizarTutor} className="grid gap-3 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 md:grid-cols-2">
+                  <input type="hidden" name="tutorId" value={t.id} />
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Nombre
+                    <input name="nombre" defaultValue={t.nombre} required className={inputClass} />
+                  </label>
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Apellido
+                    <input name="apellido" defaultValue={t.apellido} className={inputClass} />
+                  </label>
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Cédula
+                    <input name="cedula" defaultValue={t.cedula ?? ""} className={inputClass} />
+                  </label>
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Correo
+                    <input name="email" type="email" defaultValue={t.email} required className={inputClass} />
+                  </label>
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Teléfono
+                    <input name="telefono" defaultValue={t.telefono} required className={inputClass} />
+                  </label>
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Teléfono alterno
+                    <input name="telefonoAlt" defaultValue={t.telefonoAlt ?? ""} className={inputClass} />
+                  </label>
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Dirección
+                    <input name="direccion" defaultValue={t.direccion ?? ""} className={inputClass} />
+                  </label>
+                  <label className="text-xs text-[var(--color-ink-soft)]">
+                    Ocupación
+                    <input name="ocupacion" defaultValue={t.ocupacion ?? ""} className={inputClass} />
+                  </label>
+                  <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-2">
+                    Guardar cambios
+                  </BotonGuardar>
+                </form>
+                <form
+                  action={otorgarAccesoTutorManual}
+                  className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-line)] p-4"
+                >
+                  <input type="hidden" name="tutorId" value={t.id} />
+                  <p className="text-xs text-[var(--color-ink-soft)]">
+                    Acceso al portal:{" "}
+                    <span className={t.passwordHash ? "font-semibold text-[var(--color-green)]" : "font-semibold text-red-600"}>
+                      {t.passwordHash ? "Ya tiene acceso" : "Todavía no tiene acceso"}
+                    </span>
+                  </p>
+                  <BotonGuardar
+                    textoGuardado="✓ Enviado"
+                    className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
+                  >
+                    {t.passwordHash ? "Reenviar credenciales" : "Otorgar acceso"}
+                  </BotonGuardar>
+                </form>
+              </>
+            ) : (
+              <div className="space-y-1 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 text-xs text-[var(--color-ink-soft)]">
+                <p>Cédula: {t.cedula || "—"}</p>
+                <p>Teléfono: {t.telefono}{t.telefonoAlt && ` · Alt: ${t.telefonoAlt}`}</p>
+                {t.direccion && <p>Dirección: {t.direccion}</p>}
+                {t.ocupacion && <p>Ocupación: {t.ocupacion}</p>}
+              </div>
+            )}
           </details>
         ))}
         {tutores.length === 0 && (

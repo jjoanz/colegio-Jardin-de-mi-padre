@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { crearAula, actualizarAula, eliminarAula } from "@/lib/actions";
 import { BotonGuardar } from "@/components/BotonGuardar";
 import { SelectGradoPorNivel } from "@/components/SelectGradoPorNivel";
@@ -7,6 +8,13 @@ import { FormEliminarConEstado } from "@/components/FormEliminarConEstado";
 export const dynamic = "force-dynamic";
 
 export default async function AulasPage() {
+  const session = await auth();
+  const usuario = session?.user as { permisos?: string[] } | undefined;
+  const permisos = usuario?.permisos ?? [];
+  const puedeCrear = permisos.includes("oferta_academica:crear");
+  const puedeEditar = permisos.includes("oferta_academica:editar");
+  const puedeEliminar = permisos.includes("oferta_academica:eliminar");
+
   const [aulas, niveles, grados, aniosEscolares] = await Promise.all([
     prisma.aula.findMany({
       orderBy: [{ anioEscolar: { fechaInicio: "desc" } }, { nombre: "asc" }],
@@ -29,9 +37,13 @@ export default async function AulasPage() {
           Aulas
         </h1>
         <p className="mt-1 text-[var(--color-ink-soft)]">
-          Todas las aulas, de todos los años escolares. Editá cualquier celda y dale a
-          &quot;Guardar&quot; en su fila. Los profesores se asignan por materia en{" "}
-          <strong>Horarios</strong>, no aquí.
+          Todas las aulas, de todos los años escolares.
+          {puedeEditar && (
+            <>
+              {" "}Editá cualquier celda y dale a &quot;Guardar&quot; en su fila.
+            </>
+          )}{" "}
+          Los profesores se asignan por materia en <strong>Horarios</strong>, no aquí.
         </p>
       </div>
 
@@ -47,7 +59,7 @@ export default async function AulasPage() {
               <th className="px-3 py-2">Cupo</th>
               <th className="px-3 py-2">Matriculados</th>
               <th className="px-3 py-2 text-center">Activa</th>
-              <th className="px-3 py-2"></th>
+              {(puedeEditar || puedeEliminar) && <th className="px-3 py-2"></th>}
             </tr>
           </thead>
           <tbody>
@@ -56,65 +68,89 @@ export default async function AulasPage() {
               return (
                 <tr key={a.id} className="border-t border-[var(--color-line)]">
                   <td className="px-2 py-1.5">
-                    <input form={formId} name="nombre" defaultValue={a.nombre} className={cellInput} />
+                    {puedeEditar ? (
+                      <input form={formId} name="nombre" defaultValue={a.nombre} className={cellInput} />
+                    ) : (
+                      a.nombre
+                    )}
                   </td>
                   <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">{a.nivel.nombre}</td>
-                  <td className="px-2 py-1.5">
-                    <select form={formId} name="gradoId" defaultValue={a.gradoId ?? ""} className={cellInput}>
-                      <option value="">Sin grado específico</option>
-                      {grados
-                        .filter((g) => g.nivelId === a.nivelId)
-                        .map((g) => (
-                          <option key={g.id} value={g.id}>
-                            {g.nombre}
-                          </option>
-                        ))}
-                    </select>
+                  <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">
+                    {puedeEditar ? (
+                      <select form={formId} name="gradoId" defaultValue={a.gradoId ?? ""} className={cellInput}>
+                        <option value="">Sin grado específico</option>
+                        {grados
+                          .filter((g) => g.nivelId === a.nivelId)
+                          .map((g) => (
+                            <option key={g.id} value={g.id}>
+                              {g.nombre}
+                            </option>
+                          ))}
+                      </select>
+                    ) : (
+                      a.grado?.nombre ?? "—"
+                    )}
                   </td>
                   <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">{a.tanda}</td>
                   <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">{a.anioEscolar.nombre}</td>
                   <td className="px-2 py-1.5">
-                    <input
-                      form={formId}
-                      name="capacidad"
-                      type="number"
-                      defaultValue={a.capacidad}
-                      className={`${cellInput} w-16`}
-                    />
+                    {puedeEditar ? (
+                      <input
+                        form={formId}
+                        name="capacidad"
+                        type="number"
+                        defaultValue={a.capacidad}
+                        className={`${cellInput} w-16`}
+                      />
+                    ) : (
+                      a.capacidad
+                    )}
                   </td>
                   <td className="px-2 py-1.5 text-center text-xs text-[var(--color-ink-soft)]">
                     {a.matriculas.length}
                   </td>
                   <td className="px-2 py-1.5 text-center">
-                    <input form={formId} type="checkbox" name="activa" defaultChecked={a.activa} />
+                    {puedeEditar ? (
+                      <input form={formId} type="checkbox" name="activa" defaultChecked={a.activa} />
+                    ) : (
+                      <span className="text-xs">{a.activa ? "Sí" : "No"}</span>
+                    )}
                   </td>
-                  <td className="px-2 py-1.5 whitespace-nowrap">
-                    <button
-                      form={formId}
-                      className="rounded-lg bg-[var(--color-green)] px-3 py-1.5 text-xs font-bold text-white"
-                    >
-                      Guardar
-                    </button>
-                    <form id={formId} action={actualizarAula} className="hidden">
-                      <input type="hidden" name="aulaId" value={a.id} />
-                    </form>
-                    <span className="ml-1.5 inline-block">
-                      <FormEliminarConEstado
-                        action={eliminarAula}
-                        idFieldName="aulaId"
-                        idValue={a.id}
-                        label="Eliminar"
-                        className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
-                      />
-                    </span>
-                  </td>
+                  {(puedeEditar || puedeEliminar) && (
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      {puedeEditar && (
+                        <>
+                          <button
+                            form={formId}
+                            className="rounded-lg bg-[var(--color-green)] px-3 py-1.5 text-xs font-bold text-white"
+                          >
+                            Guardar
+                          </button>
+                          <form id={formId} action={actualizarAula} className="hidden">
+                            <input type="hidden" name="aulaId" value={a.id} />
+                          </form>
+                        </>
+                      )}
+                      {puedeEliminar && (
+                        <span className="ml-1.5 inline-block">
+                          <FormEliminarConEstado
+                            action={eliminarAula}
+                            idFieldName="aulaId"
+                            idValue={a.id}
+                            label="Eliminar"
+                            className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
+                          />
+                        </span>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {aulas.length === 0 && (
               <tr>
                 <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink-soft)]">
-                  Aún no hay aulas creadas. Agregá la primera abajo.
+                  Aún no hay aulas creadas.
                 </td>
               </tr>
             )}
@@ -122,35 +158,37 @@ export default async function AulasPage() {
         </table>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-dashed border-[var(--color-line)] bg-white p-4">
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
-          + Agregar aula nueva
-        </p>
-        <form action={crearAula} className="grid grid-cols-2 gap-2 md:grid-cols-6">
-          <input name="nombre" placeholder="Nombre" required className={cellInput} />
-          <SelectGradoPorNivel grados={grados} niveles={niveles} className={cellInput} />
-          <select name="tanda" required className={cellInput}>
-            <option value="MATUTINA">Matutina</option>
-            <option value="VESPERTINA">Vespertina</option>
-            <option value="EXTENDIDA">Extendida</option>
-          </select>
-          <select name="anioEscolarId" required className={cellInput}>
-            <option value="">Año escolar…</option>
-            {aniosEscolares.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.nombre}
-              </option>
-            ))}
-          </select>
-          <input name="capacidad" type="number" placeholder="Cupo" required className={cellInput} />
-          <BotonGuardar
-            textoGuardado="✓ Creada"
-            className="col-span-2 rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-6"
-          >
-            Crear aula
-          </BotonGuardar>
-        </form>
-      </div>
+      {puedeCrear && (
+        <div className="mt-4 rounded-2xl border border-dashed border-[var(--color-line)] bg-white p-4">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
+            + Agregar aula nueva
+          </p>
+          <form action={crearAula} className="grid grid-cols-2 gap-2 md:grid-cols-6">
+            <input name="nombre" placeholder="Nombre" required className={cellInput} />
+            <SelectGradoPorNivel grados={grados} niveles={niveles} className={cellInput} />
+            <select name="tanda" required className={cellInput}>
+              <option value="MATUTINA">Matutina</option>
+              <option value="VESPERTINA">Vespertina</option>
+              <option value="EXTENDIDA">Extendida</option>
+            </select>
+            <select name="anioEscolarId" required className={cellInput}>
+              <option value="">Año escolar…</option>
+              {aniosEscolares.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre}
+                </option>
+              ))}
+            </select>
+            <input name="capacidad" type="number" placeholder="Cupo" required className={cellInput} />
+            <BotonGuardar
+              textoGuardado="✓ Creada"
+              className="col-span-2 rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-6"
+            >
+              Crear aula
+            </BotonGuardar>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

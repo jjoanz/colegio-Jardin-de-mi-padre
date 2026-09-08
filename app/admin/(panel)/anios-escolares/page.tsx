@@ -1,10 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { crearAnioEscolar, actualizarAnioEscolar } from "@/lib/actions";
 import { BotonGuardar } from "@/components/BotonGuardar";
 
 export const dynamic = "force-dynamic";
 
 export default async function AniosEscolaresPage() {
+  const session = await auth();
+  const usuario = session?.user as { permisos?: string[] } | undefined;
+  const permisos = usuario?.permisos ?? [];
+  const puedeCrear = permisos.includes("oferta_academica:crear");
+  const puedeEditar = permisos.includes("oferta_academica:editar");
+
   const aniosEscolares = await prisma.anioEscolar.findMany({ orderBy: { fechaInicio: "desc" } });
 
   return (
@@ -34,43 +41,49 @@ export default async function AniosEscolaresPage() {
                 {a.activo ? "Activo" : "Inactivo"}
               </span>
             </summary>
-            <form
-              action={actualizarAnioEscolar}
-              className="grid gap-3 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 md:grid-cols-2"
-            >
-              <input type="hidden" name="anioEscolarId" value={a.id} />
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Nombre
-                <input name="nombre" defaultValue={a.nombre} required className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Fecha inicio
-                <input
-                  name="fechaInicio"
-                  type="date"
-                  defaultValue={a.fechaInicio.toISOString().slice(0, 10)}
-                  required
-                  className={inputClass}
-                />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Fecha fin
-                <input
-                  name="fechaFin"
-                  type="date"
-                  defaultValue={a.fechaFin.toISOString().slice(0, 10)}
-                  required
-                  className={inputClass}
-                />
-              </label>
-              <label className="flex items-center gap-2 self-end text-xs text-[var(--color-ink-soft)]">
-                <input type="checkbox" name="activo" defaultChecked={a.activo} />
-                Año escolar activo
-              </label>
-              <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-2">
-                Guardar cambios
-              </BotonGuardar>
-            </form>
+            {puedeEditar ? (
+              <form
+                action={actualizarAnioEscolar}
+                className="grid gap-3 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 md:grid-cols-2"
+              >
+                <input type="hidden" name="anioEscolarId" value={a.id} />
+                <label className="text-xs text-[var(--color-ink-soft)]">
+                  Nombre
+                  <input name="nombre" defaultValue={a.nombre} required className={inputClass} />
+                </label>
+                <label className="text-xs text-[var(--color-ink-soft)]">
+                  Fecha inicio
+                  <input
+                    name="fechaInicio"
+                    type="date"
+                    defaultValue={a.fechaInicio.toISOString().slice(0, 10)}
+                    required
+                    className={inputClass}
+                  />
+                </label>
+                <label className="text-xs text-[var(--color-ink-soft)]">
+                  Fecha fin
+                  <input
+                    name="fechaFin"
+                    type="date"
+                    defaultValue={a.fechaFin.toISOString().slice(0, 10)}
+                    required
+                    className={inputClass}
+                  />
+                </label>
+                <label className="flex items-center gap-2 self-end text-xs text-[var(--color-ink-soft)]">
+                  <input type="checkbox" name="activo" defaultChecked={a.activo} />
+                  Año escolar activo
+                </label>
+                <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-2">
+                  Guardar cambios
+                </BotonGuardar>
+              </form>
+            ) : (
+              <div className="border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 text-xs text-[var(--color-ink-soft)]">
+                {a.fechaInicio.toLocaleDateString("es-DO")} — {a.fechaFin.toLocaleDateString("es-DO")}
+              </div>
+            )}
           </details>
         ))}
         {aniosEscolares.length === 0 && (
@@ -80,29 +93,31 @@ export default async function AniosEscolaresPage() {
         )}
       </div>
 
-      <form
-        action={crearAnioEscolar}
-        className="mt-6 space-y-3 rounded-2xl border border-dashed border-[var(--color-line)] bg-white p-5"
-      >
-        <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
-          Nuevo año escolar
-        </p>
-        <input name="nombre" placeholder="Nombre (ej. 2026-2027)" required className={inputClass} />
-        <label className="block text-xs text-[var(--color-ink-soft)]">
-          Fecha inicio
-          <input name="fechaInicio" type="date" required className={inputClass} />
-        </label>
-        <label className="block text-xs text-[var(--color-ink-soft)]">
-          Fecha fin
-          <input name="fechaFin" type="date" required className={inputClass} />
-        </label>
-        <BotonGuardar
-          textoGuardado="✓ Creado"
-          className="w-full rounded-lg bg-[var(--color-green)] py-2.5 text-sm font-bold text-white disabled:opacity-60"
+      {puedeCrear && (
+        <form
+          action={crearAnioEscolar}
+          className="mt-6 space-y-3 rounded-2xl border border-dashed border-[var(--color-line)] bg-white p-5"
         >
-          Crear año escolar
-        </BotonGuardar>
-      </form>
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
+            Nuevo año escolar
+          </p>
+          <input name="nombre" placeholder="Nombre (ej. 2026-2027)" required className={inputClass} />
+          <label className="block text-xs text-[var(--color-ink-soft)]">
+            Fecha inicio
+            <input name="fechaInicio" type="date" required className={inputClass} />
+          </label>
+          <label className="block text-xs text-[var(--color-ink-soft)]">
+            Fecha fin
+            <input name="fechaFin" type="date" required className={inputClass} />
+          </label>
+          <BotonGuardar
+            textoGuardado="✓ Creado"
+            className="w-full rounded-lg bg-[var(--color-green)] py-2.5 text-sm font-bold text-white disabled:opacity-60"
+          >
+            Crear año escolar
+          </BotonGuardar>
+        </form>
+      )}
     </div>
   );
 }

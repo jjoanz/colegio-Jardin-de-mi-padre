@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { crearMateria, actualizarMateria } from "@/lib/actions-horarios";
 import { BotonGuardar } from "@/components/BotonGuardar";
 import type { Grado, Nivel } from "@prisma/client";
@@ -6,6 +7,12 @@ import type { Grado, Nivel } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 export default async function MateriasPage() {
+  const session = await auth();
+  const usuario = session?.user as { permisos?: string[] } | undefined;
+  const permisos = usuario?.permisos ?? [];
+  const puedeCrear = permisos.includes("oferta_academica:crear");
+  const puedeEditar = permisos.includes("oferta_academica:editar");
+
   const [materias, niveles] = await Promise.all([
     prisma.materia.findMany({
       include: { niveles: true, grados: { include: { nivel: true } } },
@@ -49,32 +56,40 @@ export default async function MateriasPage() {
                 {m.activa ? "Activa" : "Inactiva"}
               </span>
             </summary>
-            <form
-              action={actualizarMateria}
-              className="grid gap-3 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 md:grid-cols-2"
-            >
-              <input type="hidden" name="materiaId" value={m.id} />
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Nombre
-                <input name="nombre" defaultValue={m.nombre} required className={inputClass} />
-              </label>
-              <label className="text-xs text-[var(--color-ink-soft)]">
-                Descripción
-                <input name="descripcion" defaultValue={m.descripcion ?? ""} className={inputClass} />
-              </label>
-              <CheckboxesNivelesYGrados
-                niveles={niveles}
-                nivelIdsSeleccionados={m.niveles.map((n) => n.id)}
-                gradoIdsSeleccionados={m.grados.map((g) => g.id)}
-              />
-              <label className="flex items-center gap-2 self-end text-xs text-[var(--color-ink-soft)]">
-                <input type="checkbox" name="activa" defaultChecked={m.activa} />
-                Materia activa
-              </label>
-              <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-xs font-bold text-white disabled:opacity-60 md:col-span-2">
-                Guardar cambios
-              </BotonGuardar>
-            </form>
+            {puedeEditar ? (
+              <form
+                action={actualizarMateria}
+                className="grid gap-3 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 md:grid-cols-2"
+              >
+                <input type="hidden" name="materiaId" value={m.id} />
+                <label className="text-xs text-[var(--color-ink-soft)]">
+                  Nombre
+                  <input name="nombre" defaultValue={m.nombre} required className={inputClass} />
+                </label>
+                <label className="text-xs text-[var(--color-ink-soft)]">
+                  Descripción
+                  <input name="descripcion" defaultValue={m.descripcion ?? ""} className={inputClass} />
+                </label>
+                <CheckboxesNivelesYGrados
+                  niveles={niveles}
+                  nivelIdsSeleccionados={m.niveles.map((n) => n.id)}
+                  gradoIdsSeleccionados={m.grados.map((g) => g.id)}
+                />
+                <label className="flex items-center gap-2 self-end text-xs text-[var(--color-ink-soft)]">
+                  <input type="checkbox" name="activa" defaultChecked={m.activa} />
+                  Materia activa
+                </label>
+                <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-xs font-bold text-white disabled:opacity-60 md:col-span-2">
+                  Guardar cambios
+                </BotonGuardar>
+              </form>
+            ) : (
+              m.descripcion && (
+                <div className="border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 text-xs text-[var(--color-ink-soft)]">
+                  {m.descripcion}
+                </div>
+              )
+            )}
           </details>
         ))}
         {materias.length === 0 && (
@@ -84,20 +99,22 @@ export default async function MateriasPage() {
         )}
       </div>
 
-      <form
-        action={crearMateria}
-        className="mt-6 grid gap-3 rounded-2xl border border-dashed border-[var(--color-line)] bg-white p-5 md:grid-cols-2"
-      >
-        <input name="nombre" placeholder="Nombre (ej. Matemáticas)" required className={inputClass} />
-        <input name="descripcion" placeholder="Descripción (opcional)" className={inputClass} />
-        <CheckboxesNivelesYGrados niveles={niveles} nivelIdsSeleccionados={[]} gradoIdsSeleccionados={[]} />
-        <BotonGuardar
-          textoGuardado="✓ Agregada"
-          className="rounded-lg bg-[var(--color-green)] py-2.5 text-sm font-bold text-white disabled:opacity-60 md:col-span-2"
+      {puedeCrear && (
+        <form
+          action={crearMateria}
+          className="mt-6 grid gap-3 rounded-2xl border border-dashed border-[var(--color-line)] bg-white p-5 md:grid-cols-2"
         >
-          + Agregar materia
-        </BotonGuardar>
-      </form>
+          <input name="nombre" placeholder="Nombre (ej. Matemáticas)" required className={inputClass} />
+          <input name="descripcion" placeholder="Descripción (opcional)" className={inputClass} />
+          <CheckboxesNivelesYGrados niveles={niveles} nivelIdsSeleccionados={[]} gradoIdsSeleccionados={[]} />
+          <BotonGuardar
+            textoGuardado="✓ Agregada"
+            className="rounded-lg bg-[var(--color-green)] py-2.5 text-sm font-bold text-white disabled:opacity-60 md:col-span-2"
+          >
+            + Agregar materia
+          </BotonGuardar>
+        </form>
+      )}
     </div>
   );
 }
