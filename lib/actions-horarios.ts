@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { DiaSemana } from "@prisma/client";
+import { requierePermiso } from "@/lib/permisos";
 
 const RUTA = "/admin/horarios";
 
@@ -62,6 +63,7 @@ const NOMBRES_DIA: Record<string, string> = {
 };
 
 export async function crearBloqueHorario(formData: FormData) {
+  await requierePermiso("horarios", "crear");
   const aulaId = String(formData.get("aulaId"));
   const materiaId = String(formData.get("materiaId"));
   const docenteId = String(formData.get("docenteId") || "") || null;
@@ -130,6 +132,7 @@ export async function crearBloqueHorario(formData: FormData) {
 }
 
 export async function actualizarBloqueHorario(formData: FormData) {
+  await requierePermiso("horarios", "editar");
   const bloqueId = String(formData.get("bloqueId"));
   const materiaId = String(formData.get("materiaId"));
   const docenteId = String(formData.get("docenteId") || "") || null;
@@ -194,6 +197,7 @@ export async function actualizarBloqueHorario(formData: FormData) {
 }
 
 export async function eliminarBloqueHorario(formData: FormData) {
+  await requierePermiso("horarios", "eliminar");
   const bloqueId = String(formData.get("bloqueId"));
   await prisma.bloqueHorario.delete({ where: { id: bloqueId } });
   revalidatePath(RUTA);

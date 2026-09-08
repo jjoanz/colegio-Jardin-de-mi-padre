@@ -202,6 +202,80 @@ export async function notificarNuevoPagoReportado(params: {
   });
 }
 
+// Se envía al director académico y a la coordinadora académica (roles
+// DIRECTOR_ACADEMICO y COORDINADOR_DOCENTE) cuando un docente manda una
+// planificación a revisión.
+export async function notificarPlanificacionEnviada(params: {
+  nombreDocente: string;
+  titulo: string;
+  tipo: string;
+}): Promise<void> {
+  const destinatarios = await prisma.adminUser.findMany({
+    where: { activo: true, role: { nombre: { in: ["DIRECTOR_ACADEMICO", "COORDINADOR_DOCENTE"] } } },
+    select: { email: true },
+  });
+  if (destinatarios.length === 0) return;
+
+  const tipoEtiqueta = params.tipo === "PRIMARIA" ? "Primaria" : "Nivel Inicial";
+
+  await Promise.all(
+    destinatarios.map((d) =>
+      enviarCorreo({
+        to: d.email,
+        subject: `Nueva planificación para revisar: ${params.titulo}`,
+        html: plantillaBase(
+          "Planificación docente enviada a revisión",
+          `<p><strong>${params.nombreDocente}</strong> envió una planificación de <strong>${tipoEtiqueta}</strong> para tu revisión:</p>
+           <p style="font-size:16px;"><strong>${params.titulo}</strong></p>
+           <p>Revísala en el panel administrativo, sección Planificación docente.</p>`
+        ),
+      })
+    )
+  );
+}
+
+// Se envía cuando el coordinador/director aprueba o rechaza una
+// planificación: al docente dueño (para que sepa el resultado) y al
+// director académico (para que quede al tanto), aunque no haya sido quien
+// revisó.
+export async function notificarPlanificacionRevisada(params: {
+  docenteEmail: string;
+  docenteNombre: string;
+  titulo: string;
+  decision: "APROBADA" | "RECHAZADA";
+  comentario?: string | null;
+}): Promise<void> {
+  const aprobada = params.decision === "APROBADA";
+
+  const directores = await prisma.adminUser.findMany({
+    where: { activo: true, role: { nombre: "DIRECTOR_ACADEMICO" } },
+    select: { email: true },
+  });
+  const destinatarios = Array.from(new Set([params.docenteEmail, ...directores.map((d) => d.email)]));
+
+  await Promise.all(
+    destinatarios.map((email) =>
+      enviarCorreo({
+        to: email,
+        subject: aprobada
+          ? `Planificación aprobada: ${params.titulo}`
+          : `Planificación rechazada — requiere corrección: ${params.titulo}`,
+        html: plantillaBase(
+          aprobada ? "Planificación aprobada" : "Planificación rechazada",
+          `<p>La planificación de <strong>${params.docenteNombre}</strong>, titulada
+           <strong>${params.titulo}</strong>, fue <strong>${aprobada ? "aprobada" : "rechazada"}</strong>.</p>
+           ${
+             params.comentario
+               ? `<p><strong>Comentario del coordinador/director:</strong> ${params.comentario}</p>`
+               : ""
+           }
+           <p>Revísala en el panel administrativo, sección Planificación docente.</p>`
+        ),
+      })
+    )
+  );
+}
+
 export async function notificarCargoGenerado(params: {
   estudianteId: string;
   descripcion: string;

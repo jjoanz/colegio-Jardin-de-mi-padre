@@ -4,16 +4,19 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { TipoPlanificacion } from "@prisma/client";
+import { notificarPlanificacionEnviada, notificarPlanificacionRevisada } from "@/lib/notificaciones";
 
 async function usuarioActual() {
   const session = await auth();
-  const usuario = session?.user as { id?: string; role?: string } | undefined;
+  const usuario = session?.user as { id?: string; name?: string; role?: string; permisos?: string[] } | undefined;
   if (!usuario?.id) throw new Error("Debes iniciar sesión para gestionar planificaciones.");
-  return usuario;
+  return { ...usuario, permisos: usuario.permisos ?? [] };
 }
 
-function esRevisor(rol?: string) {
-  return rol === "ADMIN" || rol === "COORDINADOR_DOCENTE";
+// Revisor = quien tiene permiso para editar el módulo académico (lo definen
+// Roles y Permisos, no un nombre de rol fijo en el código).
+function esRevisor(permisos: string[]) {
+  return permisos.includes("academico:editar");
 }
 
 // Campos de texto libre que se guardan tal cual vienen del formulario.
@@ -94,14 +97,14 @@ export async function actualizarPlanificacion(formData: FormData) {
   });
 
   const esDueno = existente.docenteId === usuario.id;
-  if (!esDueno && !esRevisor(usuario.role)) {
+  if (!esDueno && !esRevisor(usuario.permisos)) {
     throw new Error("Solo el docente que creó esta planificación (o un revisor) puede editarla.");
   }
 
   // Una vez enviada a revisión o aprobada, el docente ya no puede editar el
   // contenido — solo el coordinador/admin, o el docente si fue rechazada
   // (para corregirla y reenviarla).
-  if (esDueno && !esRevisor(usuario.role) && (existente.estado === "ENVIADA" || existente.estado === "APROBADA")) {
+  if (esDueno && !esRevisor(usuario.permisos) && (existente.estado === "ENVIADA" || existente.estado === "APROBADA")) {
     throw new Error("Esta planificación ya está en revisión o aprobada y no se puede editar. Si necesitas cambiarla, contacta al coordinador.");
   }
 
@@ -135,7 +138,7 @@ export async function eliminarPlanificacion(formData: FormData) {
   });
 
   const esDueno = existente.docenteId === usuario.id;
-  if (!esDueno && !esRevisor(usuario.role)) {
+  if (!esDueno && !esRevisor(usuario.permisos)) {
     throw new Error("Solo el docente que creó esta planificación (o un revisor) puede eliminarla.");
   }
 
@@ -157,13 +160,20 @@ export async function enviarParaRevision(formData: FormData) {
     where: { id: planificacionId },
     data: { estado: "ENVIADA", comentarioCoordinador: null, revisadoPorId: null, revisadoEn: null },
   });
+
+  await notificarPlanificacionEnviada({
+    nombreDocente: usuario.name ?? "Un docente",
+    titulo: existente.titulo,
+    tipo: existente.tipo,
+  });
+
   revalidatePath("/admin/planificaciones");
 }
 
 // El coordinador/admin aprueba o rechaza (con comentario) una planificación enviada.
 export async function revisarPlanificacion(formData: FormData) {
   const usuario = await usuarioActual();
-  if (!esRevisor(usuario.role)) {
+  if (!esRevisor(usuario.permisos)) {
     throw new Error("Solo un Coordinador Docente o Administrador puede revisar planificaciones.");
   }
 
@@ -175,7 +185,7 @@ export async function revisarPlanificacion(formData: FormData) {
     throw new Error("Escribe un comentario explicando qué debe corregir el docente.");
   }
 
-  await prisma.planificacionDocente.update({
+  const planificacion = await prisma.planificacionDocente.update({
     where: { id: planificacionId },
     data: {
       estado: decision as "APROBADA" | "RECHAZADA",
@@ -183,7 +193,17 @@ export async function revisarPlanificacion(formData: FormData) {
       revisadoPorId: usuario.id,
       revisadoEn: new Date(),
     },
+    include: { docente: true },
   });
+
+  await notificarPlanificacionRevisada({
+    docenteEmail: planificacion.docente.email,
+    docenteNombre: planificacion.docente.nombre,
+    titulo: planificacion.titulo,
+    decision: decision as "APROBADA" | "RECHAZADA",
+    comentario: planificacion.comentarioCoordinador,
+  });
+
   revalidatePath("/admin/planificaciones");
 }
 

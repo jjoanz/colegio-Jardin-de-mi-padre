@@ -22,9 +22,13 @@ const ETIQUETA_ESTADO: Record<string, { texto: string; clase: string }> = {
 
 export default async function PlanificacionesPage() {
   const session = await auth();
-  const usuario = session?.user as { id?: string; role?: string; name?: string } | undefined;
+  const usuario = session?.user as { id?: string; role?: string; name?: string; permisos?: string[] } | undefined;
+  const permisos = usuario?.permisos ?? [];
   const esAdmin = usuario?.role === "ADMIN";
-  const esRevisor = usuario?.role === "ADMIN" || usuario?.role === "COORDINADOR_DOCENTE";
+  // Revisor = quien tiene permiso para editar el módulo académico, según
+  // Roles y Permisos (no un nombre de rol fijo) — hoy son ADMIN, DIRECTOR_ACADEMICO
+  // y COORDINADOR_DOCENTE, pero el que decide es el permiso, no el nombre.
+  const esRevisor = permisos.includes("academico:editar");
 
   const aulaIdsDelDocente = esAdmin
     ? null

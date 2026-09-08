@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import { crearBloqueHorario, actualizarBloqueHorario, eliminarBloqueHorario } from "@/lib/actions-horarios";
 import { BotonGuardar } from "@/components/BotonGuardar";
 import type { Prisma } from "@prisma/client";
@@ -70,6 +71,20 @@ type SearchParams = {
 export default async function HorariosPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const vista = sp.vista === "grid" ? "grid" : "tabla";
+
+  const session = await auth();
+  const usuario = session?.user as { id?: string; permisos?: string[] } | undefined;
+  const permisos = usuario?.permisos ?? [];
+  const puedeEditar =
+    permisos.includes("horarios:crear") ||
+    permisos.includes("horarios:editar") ||
+    permisos.includes("horarios:eliminar");
+
+  // Quien solo tiene "horarios:ver" (ej. un docente) no ve el panel de
+  // gestión completo — solo su propio horario, de solo lectura.
+  if (!puedeEditar) {
+    return <MiHorarioSoloLectura docenteId={usuario?.id ?? ""} />;
+  }
 
   const [aulas, materias, docentes, aniosEscolares] = await Promise.all([
     prisma.aula.findMany({
@@ -524,3 +539,66 @@ const inputClass =
   "mt-1 w-full rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm outline-none focus:border-[var(--color-green)]";
 const cellInput =
   "w-full rounded border border-[var(--color-line)] px-2 py-1 text-sm outline-none focus:border-[var(--color-green)]";
+
+// ---------------------------------------------------------------------------
+// VISTA DE SOLO LECTURA — para quien solo tiene "horarios:ver" (docentes):
+// ve nada más sus propios bloques, sin ningún control para crear/editar/borrar.
+// ---------------------------------------------------------------------------
+
+async function MiHorarioSoloLectura({ docenteId }: { docenteId: string }) {
+  const bloques = docenteId
+    ? await prisma.bloqueHorario.findMany({
+        where: { docenteId },
+        include: { materia: true, aula: { include: { nivel: true } }, anioEscolar: true },
+        orderBy: [{ anioEscolar: { fechaInicio: "desc" } }, { diaSemana: "asc" }, { horaInicioMin: "asc" }],
+      })
+    : [];
+
+  const porDia = new Map<string, typeof bloques>();
+  for (const b of bloques) {
+    if (!porDia.has(b.diaSemana)) porDia.set(b.diaSemana, []);
+    porDia.get(b.diaSemana)!.push(b);
+  }
+
+  return (
+    <div>
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-[var(--color-ink)]">
+        Mi horario
+      </h1>
+      <p className="mt-1 text-[var(--color-ink-soft)]">
+        Solo puedes ver tu horario. Si algo está mal, contacta a coordinación académica.
+      </p>
+
+      <div className="mt-6 space-y-4">
+        {DIAS.filter((d) => porDia.has(d.value)).map((d) => (
+          <section key={d.value} className="rounded-2xl border border-[var(--color-line)] bg-white p-4">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">{d.label}</h2>
+            <div className="mt-2 space-y-2">
+              {porDia.get(d.value)!.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--color-paper-dark)] px-4 py-2.5 text-sm"
+                >
+                  <div>
+                    <p className="font-semibold text-[var(--color-ink)]">{b.materia.nombre}</p>
+                    <p className="text-xs text-[var(--color-ink-soft)]">
+                      {b.aula.nombre} · {b.aula.nivel.nombre} · {b.anioEscolar.nombre}
+                    </p>
+                  </div>
+                  <p className="font-mono text-xs text-[var(--color-ink-soft)]">
+                    {minutosAHora(b.horaInicioMin)} – {minutosAHora(b.horaFinMin)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+        {bloques.length === 0 && (
+          <p className="rounded-2xl border border-[var(--color-line)] bg-white p-8 text-center text-[var(--color-ink-soft)]">
+            Todavía no tienes bloques de horario asignados.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -25,7 +25,7 @@ export const RUTA_MODULO: Array<{ prefix: string; modulo: string }> = [
   { prefix: "/admin/gastos", modulo: "gastos" },
   { prefix: "/admin/cuentas", modulo: "cuentas_bancarias" },
   { prefix: "/admin/ingresos", modulo: "gastos" },
-  { prefix: "/admin/horarios", modulo: "oferta_academica" },
+  { prefix: "/admin/horarios", modulo: "horarios" },
   { prefix: "/admin/anios-escolares", modulo: "oferta_academica" },
   { prefix: "/admin/materias", modulo: "oferta_academica" },
   { prefix: "/admin/publicaciones", modulo: "formulario_inscripcion" },
