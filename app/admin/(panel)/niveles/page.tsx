@@ -9,8 +9,10 @@ export default async function NivelesPage() {
   const niveles = await prisma.nivel.findMany({
     orderBy: { ordenVisual: "asc" },
     include: {
-      grados: { orderBy: { ordenVisual: "asc" } },
-      costosAdicionales: { orderBy: { nombre: "asc" } },
+      grados: {
+        orderBy: { ordenVisual: "asc" },
+        include: { costosAdicionales: { orderBy: { nombre: "asc" } } },
+      },
     },
   });
 
@@ -132,10 +134,82 @@ export default async function NivelesPage() {
                           Guardar cambios
                         </BotonGuardar>
                       </form>
+
+                      <div className="border-t border-[var(--color-line)] p-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">
+                          Costos adicionales de {g.nombre}
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--color-ink-soft)]">
+                          Libros, uniformes, etc. — su precio suele variar de un grado a otro, por eso
+                          se define aquí y no a nivel general. El personal los aplica manualmente desde
+                          Cargos cuando quiera, nunca se cobran solos.
+                        </p>
+
+                        <div className="mt-2 space-y-2">
+                          {g.costosAdicionales.map((c) => (
+                            <details key={c.id} className="rounded-lg border border-[var(--color-line)]">
+                              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm">
+                                <span className="font-semibold text-[var(--color-ink)]">
+                                  {c.nombre} {!c.activo && <span className="text-xs font-normal text-[var(--color-ink-soft)]">(inactivo)</span>}
+                                </span>
+                                <span className="font-mono text-xs text-[var(--color-ink-soft)]">
+                                  RD$ {Number(c.monto).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                                </span>
+                              </summary>
+                              <form action={actualizarCargoAdicional} className="grid gap-2 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-3 md:grid-cols-2">
+                                <input type="hidden" name="cargoAdicionalId" value={c.id} />
+                                <label className="text-xs text-[var(--color-ink-soft)]">
+                                  Nombre
+                                  <input name="nombre" defaultValue={c.nombre} required className={inputClass} />
+                                </label>
+                                <label className="text-xs text-[var(--color-ink-soft)]">
+                                  Monto (RD$)
+                                  <input name="monto" type="number" step="0.01" defaultValue={Number(c.monto)} required className={inputClass} />
+                                </label>
+                                <label className="text-xs text-[var(--color-ink-soft)] md:col-span-2">
+                                  Descripción (opcional)
+                                  <input name="descripcion" defaultValue={c.descripcion ?? ""} className={inputClass} />
+                                </label>
+                                <label className="flex items-center gap-2 text-xs text-[var(--color-ink-soft)]">
+                                  <input type="checkbox" name="activo" defaultChecked={c.activo} />
+                                  Disponible para aplicar
+                                </label>
+                                <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-1.5 text-xs font-bold text-white disabled:opacity-60 md:col-span-2">
+                                  Guardar cambios
+                                </BotonGuardar>
+                              </form>
+                            </details>
+                          ))}
+                          {g.costosAdicionales.length === 0 && (
+                            <p className="text-xs text-[var(--color-ink-soft)]">Aún no hay costos adicionales en este grado.</p>
+                          )}
+                        </div>
+
+                        <details className="mt-2 rounded-lg border border-dashed border-[var(--color-line)] p-2.5">
+                          <summary className="cursor-pointer text-xs font-bold text-[var(--color-green)]">
+                            + Agregar costo adicional
+                          </summary>
+                          <form action={crearCargoAdicional} className="mt-2 grid gap-2 md:grid-cols-2">
+                            <input type="hidden" name="gradoId" value={g.id} />
+                            <input name="nombre" placeholder="Nombre (ej. Libros)" required className={inputClass} />
+                            <input name="monto" type="number" step="0.01" placeholder="Monto (RD$)" required className={inputClass} />
+                            <input name="descripcion" placeholder="Descripción (opcional)" className={`${inputClass} md:col-span-2`} />
+                            <BotonGuardar
+                              textoGuardado="✓ Creado"
+                              className="rounded-lg bg-[var(--color-green)] py-1.5 text-xs font-bold text-white disabled:opacity-60 md:col-span-2"
+                            >
+                              Crear costo adicional
+                            </BotonGuardar>
+                          </form>
+                        </details>
+                      </div>
                     </details>
                   ))}
                   {n.grados.length === 0 && (
-                    <p className="text-xs text-[var(--color-ink-soft)]">Aún no hay grados en este nivel.</p>
+                    <p className="text-xs text-[var(--color-ink-soft)]">
+                      Aún no hay grados en este nivel. Agrega uno para poder definirle costos
+                      adicionales (libros, uniformes, etc.).
+                    </p>
                   )}
                 </div>
 
@@ -154,74 +228,6 @@ export default async function NivelesPage() {
                       className="rounded-lg bg-[var(--color-green)] py-1.5 text-xs font-bold text-white disabled:opacity-60 md:col-span-2"
                     >
                       Crear grado
-                    </BotonGuardar>
-                  </form>
-                </details>
-              </div>
-
-              <div className="border-t border-[var(--color-line)] p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">
-                  Costos adicionales de este nivel
-                </p>
-                <p className="mt-1 text-xs text-[var(--color-ink-soft)]">
-                  Libros, uniformes, etc. — el personal los aplica manualmente desde Cargos cuando
-                  quiera, nunca se cobran solos.
-                </p>
-
-                <div className="mt-3 space-y-2">
-                  {n.costosAdicionales.map((c) => (
-                    <details key={c.id} className="rounded-lg border border-[var(--color-line)]">
-                      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-sm">
-                        <span className="font-semibold text-[var(--color-ink)]">
-                          {c.nombre} {!c.activo && <span className="text-xs font-normal text-[var(--color-ink-soft)]">(inactivo)</span>}
-                        </span>
-                        <span className="font-mono text-xs text-[var(--color-ink-soft)]">
-                          RD$ {Number(c.monto).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
-                        </span>
-                      </summary>
-                      <form action={actualizarCargoAdicional} className="grid gap-2 border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-3 md:grid-cols-2">
-                        <input type="hidden" name="cargoAdicionalId" value={c.id} />
-                        <label className="text-xs text-[var(--color-ink-soft)]">
-                          Nombre
-                          <input name="nombre" defaultValue={c.nombre} required className={inputClass} />
-                        </label>
-                        <label className="text-xs text-[var(--color-ink-soft)]">
-                          Monto (RD$)
-                          <input name="monto" type="number" step="0.01" defaultValue={Number(c.monto)} required className={inputClass} />
-                        </label>
-                        <label className="text-xs text-[var(--color-ink-soft)] md:col-span-2">
-                          Descripción (opcional)
-                          <input name="descripcion" defaultValue={c.descripcion ?? ""} className={inputClass} />
-                        </label>
-                        <label className="flex items-center gap-2 text-xs text-[var(--color-ink-soft)]">
-                          <input type="checkbox" name="activo" defaultChecked={c.activo} />
-                          Disponible para aplicar
-                        </label>
-                        <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-1.5 text-xs font-bold text-white disabled:opacity-60 md:col-span-2">
-                          Guardar cambios
-                        </BotonGuardar>
-                      </form>
-                    </details>
-                  ))}
-                  {n.costosAdicionales.length === 0 && (
-                    <p className="text-xs text-[var(--color-ink-soft)]">Aún no hay costos adicionales en este nivel.</p>
-                  )}
-                </div>
-
-                <details className="mt-3 rounded-lg border border-dashed border-[var(--color-line)] p-3">
-                  <summary className="cursor-pointer text-xs font-bold text-[var(--color-green)]">
-                    + Agregar costo adicional
-                  </summary>
-                  <form action={crearCargoAdicional} className="mt-2 grid gap-2 md:grid-cols-2">
-                    <input type="hidden" name="nivelId" value={n.id} />
-                    <input name="nombre" placeholder="Nombre (ej. Libros)" required className={inputClass} />
-                    <input name="monto" type="number" step="0.01" placeholder="Monto (RD$)" required className={inputClass} />
-                    <input name="descripcion" placeholder="Descripción (opcional)" className={`${inputClass} md:col-span-2`} />
-                    <BotonGuardar
-                      textoGuardado="✓ Creado"
-                      className="rounded-lg bg-[var(--color-green)] py-1.5 text-xs font-bold text-white disabled:opacity-60 md:col-span-2"
-                    >
-                      Crear costo adicional
                     </BotonGuardar>
                   </form>
                 </details>

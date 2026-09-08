@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type CostoAdicional = { id: string; nombre: string; monto: number; nivelNombre: string };
+type CostoAdicional = { id: string; nombre: string; monto: number; gradoEtiqueta: string };
 
 export function AplicarCostoAdicional({
   costos,
@@ -34,7 +34,7 @@ export function AplicarCostoAdicional({
           <option value="">Aplicar costo adicional del catálogo (opcional)…</option>
           {costos.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.nombre} ({c.nivelNombre}) — RD$ {c.monto.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+              {c.nombre} ({c.gradoEtiqueta}) — RD$ {c.monto.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
             </option>
           ))}
         </select>

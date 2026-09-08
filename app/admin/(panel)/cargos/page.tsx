@@ -13,7 +13,11 @@ export default async function CargosPage() {
     }),
     prisma.estudiante.findMany({ orderBy: { nombre: "asc" } }),
     prisma.especial.findMany({ where: { activo: true } }),
-    prisma.cargoAdicional.findMany({ where: { activo: true }, include: { nivel: true }, orderBy: { nombre: "asc" } }),
+    prisma.cargoAdicional.findMany({
+      where: { activo: true },
+      include: { grado: { include: { nivel: true } } },
+      orderBy: { nombre: "asc" },
+    }),
   ]);
 
   return (
@@ -116,7 +120,7 @@ export default async function CargosPage() {
               id: c.id,
               nombre: c.nombre,
               monto: Number(c.monto),
-              nivelNombre: c.nivel.nombre,
+              gradoEtiqueta: `${c.grado.nivel.nombre} - ${c.grado.nombre}`,
             }))}
             className={inputClass}
           />

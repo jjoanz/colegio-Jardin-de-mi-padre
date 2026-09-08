@@ -601,7 +601,6 @@ model Nivel {
   materias        Materia[]
   imagenes        ImagenSitio[]
   grados          Grado[]
-  costosAdicionales CargoAdicional[]
 
   @@index([activo])
 }
@@ -622,24 +621,26 @@ model Grado {
   nivel       Nivel        @relation(fields: [nivelId], references: [id], onDelete: Cascade)
   aulas       Aula[]
   estudiantes Estudiante[]
+  costosAdicionales CargoAdicional[]
 
   @@index([nivelId])
 }
 
-// Catálogo de costos opcionales por nivel (libros, uniformes, etc.) que el
+// Catálogo de costos opcionales por grado (libros, uniformes, etc. — el
+// precio suele variar de un grado a otro dentro del mismo nivel) que el
 // personal puede aplicarle a un estudiante con un clic al cobrar, en vez de
 // escribir el monto a mano cada vez. No se cobra nada automáticamente.
 model CargoAdicional {
   id          String  @id @default(cuid())
-  nivelId     String
+  gradoId     String
   nombre      String  // "Libros", "Uniforme", etc.
   monto       Decimal @db.Decimal(10, 2)
   descripcion String?
   activo      Boolean @default(true)
 
-  nivel Nivel @relation(fields: [nivelId], references: [id], onDelete: Cascade)
+  grado Grado @relation(fields: [gradoId], references: [id], onDelete: Cascade)
 
-  @@index([nivelId])
+  @@index([gradoId])
 }
 
 // ---------------------------------------------------------------------------

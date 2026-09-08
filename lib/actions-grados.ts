@@ -42,15 +42,16 @@ export async function actualizarGrado(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
-// COSTOS ADICIONALES (catálogo por nivel: libros, uniformes, etc. — el
-// personal los aplica manualmente al cobrar, nunca automático)
+// COSTOS ADICIONALES (catálogo por grado: libros, uniformes, etc. — el
+// precio suele variar de un grado a otro, por eso no se define a nivel
+// general. El personal los aplica manualmente al cobrar, nunca automático)
 // ---------------------------------------------------------------------------
 
 export async function crearCargoAdicional(formData: FormData) {
   await requierePermiso("niveles", "crear");
   await prisma.cargoAdicional.create({
     data: {
-      nivelId: String(formData.get("nivelId")),
+      gradoId: String(formData.get("gradoId")),
       nombre: String(formData.get("nombre")),
       monto: Number(formData.get("monto")),
       descripcion: String(formData.get("descripcion") || "") || undefined,
