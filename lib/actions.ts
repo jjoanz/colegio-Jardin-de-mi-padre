@@ -223,7 +223,7 @@ export async function aprobarSolicitud(formData: FormData) {
       }
     } else if (solicitud.nivelInteresId) {
       const nivel = await tx.nivel.findUnique({ where: { id: solicitud.nivelInteresId } });
-      if (nivel) {
+      if (nivel && nivel.tarifaInscripcion) {
         await tx.cargo.create({
           data: {
             estudianteId: estudiante.id,
@@ -370,7 +370,7 @@ export async function crearNivel(formData: FormData) {
   await prisma.nivel.create({
     data: {
       nombre: String(formData.get("nombre")),
-      tarifaInscripcion: Number(formData.get("tarifaInscripcion")),
+      tarifaInscripcion: formData.get("tarifaInscripcion") ? Number(formData.get("tarifaInscripcion")) : null,
       colegiaturaAnual: formData.get("colegiaturaAnual") ? Number(formData.get("colegiaturaAnual")) : 0,
       diaPago: formData.get("diaPago") ? Number(formData.get("diaPago")) : 5,
       cupoMaximo: formData.get("cupoMaximo") ? Number(formData.get("cupoMaximo")) : null,
@@ -388,7 +388,7 @@ export async function actualizarNivel(formData: FormData) {
     where: { id: nivelId },
     data: {
       nombre: String(formData.get("nombre")),
-      tarifaInscripcion: Number(formData.get("tarifaInscripcion")),
+      tarifaInscripcion: formData.get("tarifaInscripcion") ? Number(formData.get("tarifaInscripcion")) : null,
       colegiaturaAnual: formData.get("colegiaturaAnual") ? Number(formData.get("colegiaturaAnual")) : 0,
       diaPago: formData.get("diaPago") ? Number(formData.get("diaPago")) : 5,
       cupoMaximo: formData.get("cupoMaximo") ? Number(formData.get("cupoMaximo")) : null,
@@ -396,6 +396,23 @@ export async function actualizarNivel(formData: FormData) {
       activo: formData.get("activo") === "on",
     },
   });
+  revalidatePath("/admin/niveles");
+  revalidatePath("/");
+}
+
+// Solo se puede eliminar si no tiene grados, aulas ni estudiantes vinculados
+// (la base de datos lo protege con llaves foráneas; aquí solo se traduce
+// ese error a un mensaje claro para el personal).
+export async function eliminarNivel(formData: FormData) {
+  await requierePermiso("niveles", "eliminar");
+  const nivelId = String(formData.get("nivelId"));
+  try {
+    await prisma.nivel.delete({ where: { id: nivelId } });
+  } catch {
+    throw new Error(
+      "No se puede eliminar este nivel porque todavía tiene grados, aulas o estudiantes asociados. Elimínalos o muévelos primero."
+    );
+  }
   revalidatePath("/admin/niveles");
   revalidatePath("/");
 }

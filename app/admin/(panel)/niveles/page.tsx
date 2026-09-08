@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { crearNivel, actualizarNivel } from "@/lib/actions";
+import { crearNivel, actualizarNivel, eliminarNivel } from "@/lib/actions";
 import { crearGrado, actualizarGrado, crearCargoAdicional, actualizarCargoAdicional } from "@/lib/actions-grados";
 import { BotonGuardar } from "@/components/BotonGuardar";
 
@@ -25,7 +25,9 @@ export default async function NivelesPage() {
         La matrícula es el pago único de inscripción y se cobra automáticamente al aprobar
         una solicitud. La colegiatura anual es el costo total del año escolar — el sistema
         la divide sola en cuotas mensuales según el plan de pago de cada estudiante y las
-        va generando automáticamente en el día de pago que definas aquí.
+        va generando automáticamente en el día de pago que definas aquí. Si los grados de
+        este nivel tienen precios distintos entre sí, deja el precio del nivel en blanco y
+        defínelo en cada grado — el precio del grado siempre manda sobre el del nivel.
       </p>
 
       <div className="mt-8 grid gap-8 md:grid-cols-[1fr_320px]">
@@ -42,9 +44,15 @@ export default async function NivelesPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="block rounded-full bg-[var(--color-green)]/10 px-3 py-1 font-mono text-xs font-bold text-[var(--color-green)]">
-                    Matrícula RD$ {Number(n.tarifaInscripcion).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
-                  </span>
+                  {n.tarifaInscripcion != null ? (
+                    <span className="block rounded-full bg-[var(--color-green)]/10 px-3 py-1 font-mono text-xs font-bold text-[var(--color-green)]">
+                      Matrícula RD$ {Number(n.tarifaInscripcion).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                    </span>
+                  ) : (
+                    <span className="block rounded-full bg-[var(--color-paper-dark)] px-3 py-1 text-xs font-semibold text-[var(--color-ink-soft)]">
+                      Precio por grado
+                    </span>
+                  )}
                   {Number(n.colegiaturaAnual) > 0 && (
                     <span className="mt-1 block font-mono text-xs text-[var(--color-ink-soft)]">
                       Colegiatura RD$ {Number(n.colegiaturaAnual).toLocaleString("es-DO", { minimumFractionDigits: 2 })}/año
@@ -60,8 +68,14 @@ export default async function NivelesPage() {
                   <input name="nombre" defaultValue={n.nombre} required className={inputClass} />
                 </label>
                 <label className="text-xs text-[var(--color-ink-soft)]">
-                  Precio de matrícula (RD$)
-                  <input name="tarifaInscripcion" type="number" step="0.01" defaultValue={Number(n.tarifaInscripcion)} required className={inputClass} />
+                  Precio de matrícula (RD$) — déjalo en blanco si varía por grado
+                  <input
+                    name="tarifaInscripcion"
+                    type="number"
+                    step="0.01"
+                    defaultValue={n.tarifaInscripcion != null ? Number(n.tarifaInscripcion) : ""}
+                    className={inputClass}
+                  />
                 </label>
                 <label className="text-xs text-[var(--color-ink-soft)]">
                   Colegiatura anual (RD$)
@@ -85,6 +99,19 @@ export default async function NivelesPage() {
                 </label>
                 <BotonGuardar className="rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60">
                   Guardar cambios
+                </BotonGuardar>
+              </form>
+
+              <form action={eliminarNivel} className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] p-4">
+                <p className="text-xs text-[var(--color-ink-soft)]">
+                  Solo se puede eliminar si no tiene grados, aulas ni estudiantes asociados.
+                </p>
+                <input type="hidden" name="nivelId" value={n.id} />
+                <BotonGuardar
+                  textoGuardado="✓ Eliminado"
+                  className="shrink-0 rounded-lg border border-red-200 px-4 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                >
+                  Eliminar nivel
                 </BotonGuardar>
               </form>
 
@@ -246,7 +273,13 @@ export default async function NivelesPage() {
             Nuevo nivel
           </p>
           <input name="nombre" placeholder="Nombre (ej. Kínder)" required className={inputClass} />
-          <input name="tarifaInscripcion" type="number" step="0.01" placeholder="Precio de matrícula (RD$)" required className={inputClass} />
+          <input
+            name="tarifaInscripcion"
+            type="number"
+            step="0.01"
+            placeholder="Precio de matrícula (RD$) — opcional si varía por grado"
+            className={inputClass}
+          />
           <input name="colegiaturaAnual" type="number" step="0.01" placeholder="Colegiatura anual (RD$)" className={inputClass} />
           <input name="diaPago" type="number" min="1" max="28" placeholder="Día de pago (1-28)" defaultValue={5} className={inputClass} />
           <input name="cupoMaximo" type="number" placeholder="Cupo máximo (opcional)" className={inputClass} />

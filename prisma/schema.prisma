@@ -553,10 +553,13 @@ model Estudiante {
   creadoEn       DateTime         @default(now())
   actualizadoEn  DateTime         @updatedAt
 
+  // onDelete: Restrict a propósito en ambos — sin esto, Prisma pone SET NULL
+  // por defecto en relaciones opcionales, y borrar un nivel/grado desvincularía
+  // en silencio a sus estudiantes en vez de bloquear el borrado con aviso.
   nivelId        String?
-  nivel          Nivel?           @relation(fields: [nivelId], references: [id])
+  nivel          Nivel?           @relation(fields: [nivelId], references: [id], onDelete: Restrict)
   gradoId        String?
-  grado          Grado?           @relation(fields: [gradoId], references: [id])
+  grado          Grado?           @relation(fields: [gradoId], references: [id], onDelete: Restrict)
 
   tutores        EstudianteTutor[]
   documentos     Documento[]
@@ -589,7 +592,7 @@ model Documento {
 model Nivel {
   id              String   @id @default(cuid())
   nombre          String   // "Pre-Primario", "1ro de Primaria", "2do de Secundaria", etc.
-  tarifaInscripcion Decimal @db.Decimal(10, 2)
+  tarifaInscripcion Decimal? @db.Decimal(10, 2) // null: el precio vive en los grados de este nivel, no aquí
   colegiaturaAnual Decimal @db.Decimal(10, 2) @default(0) // monto total del año, antes de dividir en cuotas
   diaPago         Int      @default(5) // día del mes (1-28) en que vence cada cuota
   cupoMaximo      Int?
@@ -618,7 +621,10 @@ model Grado {
   activo            Boolean  @default(true)
   ordenVisual       Int      @default(0)
 
-  nivel       Nivel        @relation(fields: [nivelId], references: [id], onDelete: Cascade)
+  // Sin onDelete: Cascade a propósito — borrar un nivel NO debe arrastrar en
+  // silencio sus grados (y con ellos, sus costos adicionales). eliminarNivel
+  // (lib/actions.ts) debe fallar con un mensaje claro si hay grados debajo.
+  nivel       Nivel        @relation(fields: [nivelId], references: [id])
   aulas       Aula[]
   estudiantes Estudiante[]
   costosAdicionales CargoAdicional[]
