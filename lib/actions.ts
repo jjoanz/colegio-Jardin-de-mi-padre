@@ -947,6 +947,23 @@ export async function actualizarAula(formData: FormData) {
   revalidatePath("/admin/estudiantes");
 }
 
+// Solo se puede eliminar si no tiene asistencias tomadas ni estudiantes
+// matriculados ahí (la base de datos lo protege con llaves foráneas; aquí
+// solo se traduce ese error a un mensaje claro). Los horarios y
+// planificaciones ligados al aula sí se limpian solos, no bloquean el borrado.
+export async function eliminarAula(formData: FormData) {
+  await requierePermiso("oferta_academica", "eliminar");
+  const aulaId = String(formData.get("aulaId"));
+  try {
+    await prisma.aula.delete({ where: { id: aulaId } });
+  } catch {
+    throw new Error(
+      "No se puede eliminar esta aula porque todavía tiene estudiantes matriculados o asistencias registradas. Muévelos primero."
+    );
+  }
+  revalidatePath("/admin/aulas");
+}
+
 // ---------------------------------------------------------------------------
 // MATRÍCULA (asignar/cambiar de aula a un estudiante ya activo)
 // ---------------------------------------------------------------------------

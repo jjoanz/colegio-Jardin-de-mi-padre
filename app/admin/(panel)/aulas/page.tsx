@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { crearAula, actualizarAula } from "@/lib/actions";
+import { crearAula, actualizarAula, eliminarAula } from "@/lib/actions";
 import { BotonGuardar } from "@/components/BotonGuardar";
 import { SelectGradoPorNivel } from "@/components/SelectGradoPorNivel";
 
@@ -96,6 +96,12 @@ export default async function AulasPage() {
                     </button>
                     <form id={formId} action={actualizarAula} className="hidden">
                       <input type="hidden" name="aulaId" value={a.id} />
+                    </form>
+                    <form action={eliminarAula} className="ml-1.5 inline">
+                      <input type="hidden" name="aulaId" value={a.id} />
+                      <button className="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50">
+                        Eliminar
+                      </button>
                     </form>
                   </td>
                 </tr>
