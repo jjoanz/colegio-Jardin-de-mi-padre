@@ -30,7 +30,7 @@ export async function GET() {
       orderBy: [{ anioEscolar: { fechaInicio: "desc" } }, { nombre: "asc" }],
     }),
     prisma.materia.findMany({
-      include: { nivel: true },
+      include: { niveles: true, grados: true },
       orderBy: { nombre: "asc" },
     }),
     prisma.bloqueHorario.findMany({
@@ -54,7 +54,7 @@ export async function GET() {
 
   const materiasData = materias.map((m) => ({
     Nombre: m.nombre,
-    Nivel: m.nivel?.nombre ?? "Todos los niveles",
+    "Niveles/grados": [...m.niveles.map((n) => n.nombre), ...m.grados.map((g) => g.nombre)].join(", ") || "Todos",
     Descripción: m.descripcion ?? "",
     Activa: m.activa ? "Sí" : "No",
   }));

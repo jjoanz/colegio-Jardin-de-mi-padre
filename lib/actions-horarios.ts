@@ -7,11 +7,14 @@ import { DiaSemana } from "@prisma/client";
 const RUTA = "/admin/horarios";
 
 export async function crearMateria(formData: FormData) {
+  const nivelIds = formData.getAll("nivelIds").map(String);
+  const gradoIds = formData.getAll("gradoIds").map(String);
   await prisma.materia.create({
     data: {
       nombre: String(formData.get("nombre")),
-      nivelId: formData.get("nivelId") ? String(formData.get("nivelId")) : null,
       descripcion: String(formData.get("descripcion") || "") || null,
+      niveles: { connect: nivelIds.map((id) => ({ id })) },
+      grados: { connect: gradoIds.map((id) => ({ id })) },
     },
   });
   revalidatePath("/admin/aulas");
@@ -20,13 +23,16 @@ export async function crearMateria(formData: FormData) {
 
 export async function actualizarMateria(formData: FormData) {
   const materiaId = String(formData.get("materiaId"));
+  const nivelIds = formData.getAll("nivelIds").map(String);
+  const gradoIds = formData.getAll("gradoIds").map(String);
   await prisma.materia.update({
     where: { id: materiaId },
     data: {
       nombre: String(formData.get("nombre")),
-      nivelId: formData.get("nivelId") ? String(formData.get("nivelId")) : null,
       descripcion: String(formData.get("descripcion") || "") || null,
       activa: formData.get("activa") === "on",
+      niveles: { set: nivelIds.map((id) => ({ id })) },
+      grados: { set: gradoIds.map((id) => ({ id })) },
     },
   });
   revalidatePath("/admin/aulas");

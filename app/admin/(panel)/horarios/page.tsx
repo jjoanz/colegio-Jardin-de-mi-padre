@@ -5,7 +5,13 @@ import { BotonGuardar } from "@/components/BotonGuardar";
 import type { Prisma } from "@prisma/client";
 
 type AulaConNivel = Prisma.AulaGetPayload<{ include: { nivel: true } }>;
-type MateriaConNivel = Prisma.MateriaGetPayload<{ include: { nivel: true } }>;
+type MateriaConNivel = Prisma.MateriaGetPayload<{ include: { niveles: true; grados: true } }>;
+
+function etiquetaMateria(m: MateriaConNivel): string {
+  if (m.niveles.length === 0 && m.grados.length === 0) return "Todos los niveles";
+  const partes = [...m.niveles.map((n) => n.nombre), ...m.grados.map((g) => g.nombre)];
+  return partes.join(", ");
+}
 
 export const dynamic = "force-dynamic";
 
@@ -73,8 +79,8 @@ export default async function HorariosPage({ searchParams }: { searchParams: Pro
     }),
     prisma.materia.findMany({
       where: { activa: true },
-      include: { nivel: true },
-      orderBy: [{ nivel: { ordenVisual: "asc" } }, { nombre: "asc" }],
+      include: { niveles: true, grados: true },
+      orderBy: { nombre: "asc" },
     }),
     prisma.adminUser.findMany({
       where: { activo: true, role: { nombre: "PROFESOR" } },
@@ -87,7 +93,7 @@ export default async function HorariosPage({ searchParams }: { searchParams: Pro
     sp.anioEscolarId || aniosEscolares.find((a) => a.activo)?.id || aniosEscolares[0]?.id || "";
 
   const nivelesDeAulas = Array.from(new Set(aulas.map((a) => a.nivel.nombre)));
-  const nivelesDeMaterias = Array.from(new Set(materias.map((m) => m.nivel?.nombre ?? "Todos los niveles")));
+  const nivelesDeMaterias = Array.from(new Set(materias.map((m) => etiquetaMateria(m))));
 
   return (
     <div>
@@ -242,7 +248,7 @@ async function VistaTabla({
             <option value="">Todas</option>
             {nivelesDeMaterias.map((nivelNombre) => (
               <optgroup key={nivelNombre} label={nivelNombre}>
-                {materias.filter((m) => (m.nivel?.nombre ?? "Todos los niveles") === nivelNombre).map((m) => (
+                {materias.filter((m) => etiquetaMateria(m) === nivelNombre).map((m) => (
                   <option key={m.id} value={m.id}>{m.nombre}</option>
                 ))}
               </optgroup>
@@ -372,7 +378,7 @@ async function VistaTabla({
             <option value="">Materia…</option>
             {nivelesDeMaterias.map((nivelNombre) => (
               <optgroup key={nivelNombre} label={nivelNombre}>
-                {materias.filter((m) => (m.nivel?.nombre ?? "Todos los niveles") === nivelNombre).map((m) => (
+                {materias.filter((m) => etiquetaMateria(m) === nivelNombre).map((m) => (
                   <option key={m.id} value={m.id}>{m.nombre}</option>
                 ))}
               </optgroup>

@@ -392,14 +392,17 @@ model Ingreso {
 // MATERIAS Y HORARIOS (con detección de choques de aula/profesor)
 // ---------------------------------------------------------------------------
 
+// Una materia puede marcarse para niveles completos y/o grados específicos a
+// la vez (ej. "Matemáticas" para todo Nivel Inicial + solo 1ro y 2do de
+// Primaria). Vacíos ambos = aplica a todos los niveles/grados.
 model Materia {
   id          String  @id @default(cuid())
   nombre      String
-  nivelId     String?
   descripcion String?
   activa      Boolean @default(true)
 
-  nivel       Nivel?  @relation(fields: [nivelId], references: [id])
+  niveles     Nivel[]
+  grados      Grado[]
   bloques     BloqueHorario[]
 }
 
@@ -628,6 +631,7 @@ model Grado {
   aulas       Aula[]
   estudiantes Estudiante[]
   costosAdicionales CargoAdicional[]
+  materias    Materia[]
 
   @@index([nivelId])
 }
