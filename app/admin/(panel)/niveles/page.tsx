@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { crearNivel, actualizarNivel, eliminarNivel } from "@/lib/actions";
 import { crearGrado, actualizarGrado, crearCargoAdicional, actualizarCargoAdicional } from "@/lib/actions-grados";
 import { BotonGuardar } from "@/components/BotonGuardar";
+import { FormEliminarConEstado } from "@/components/FormEliminarConEstado";
 
 export const dynamic = "force-dynamic";
 
@@ -102,18 +103,18 @@ export default async function NivelesPage() {
                 </BotonGuardar>
               </form>
 
-              <form action={eliminarNivel} className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] p-4">
+              <div className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] p-4">
                 <p className="text-xs text-[var(--color-ink-soft)]">
                   Solo se puede eliminar si no tiene grados, aulas ni estudiantes asociados.
                 </p>
-                <input type="hidden" name="nivelId" value={n.id} />
-                <BotonGuardar
-                  textoGuardado="✓ Eliminado"
+                <FormEliminarConEstado
+                  action={eliminarNivel}
+                  idFieldName="nivelId"
+                  idValue={n.id}
+                  label="Eliminar nivel"
                   className="shrink-0 rounded-lg border border-red-200 px-4 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-60"
-                >
-                  Eliminar nivel
-                </BotonGuardar>
-              </form>
+                />
+              </div>
 
               <div className="border-t border-[var(--color-line)] p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">

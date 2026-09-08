@@ -403,18 +403,28 @@ export async function actualizarNivel(formData: FormData) {
 // Solo se puede eliminar si no tiene grados, aulas ni estudiantes vinculados
 // (la base de datos lo protege con llaves foráneas; aquí solo se traduce
 // ese error a un mensaje claro para el personal).
-export async function eliminarNivel(formData: FormData) {
+// Devuelve el error en vez de lanzarlo: en producción, Next.js oculta el
+// mensaje de cualquier error lanzado (throw) desde una Server Action y solo
+// muestra un mensaje genérico — con useActionState sí llega completo al usuario.
+export type EstadoEliminacion = { error?: string };
+
+export async function eliminarNivel(
+  _prevState: EstadoEliminacion,
+  formData: FormData
+): Promise<EstadoEliminacion> {
   await requierePermiso("niveles", "eliminar");
   const nivelId = String(formData.get("nivelId"));
   try {
     await prisma.nivel.delete({ where: { id: nivelId } });
   } catch {
-    throw new Error(
-      "No se puede eliminar este nivel porque todavía tiene grados, aulas o estudiantes asociados. Elimínalos o muévelos primero."
-    );
+    return {
+      error:
+        "No se puede eliminar este nivel porque todavía tiene grados, aulas o estudiantes asociados. Elimínalos o muévelos primero.",
+    };
   }
   revalidatePath("/admin/niveles");
   revalidatePath("/");
+  return {};
 }
 
 // Edición rápida, solo del monto y el día de cobro, para la pantalla de
@@ -951,17 +961,22 @@ export async function actualizarAula(formData: FormData) {
 // matriculados ahí (la base de datos lo protege con llaves foráneas; aquí
 // solo se traduce ese error a un mensaje claro). Los horarios y
 // planificaciones ligados al aula sí se limpian solos, no bloquean el borrado.
-export async function eliminarAula(formData: FormData) {
+export async function eliminarAula(
+  _prevState: EstadoEliminacion,
+  formData: FormData
+): Promise<EstadoEliminacion> {
   await requierePermiso("oferta_academica", "eliminar");
   const aulaId = String(formData.get("aulaId"));
   try {
     await prisma.aula.delete({ where: { id: aulaId } });
   } catch {
-    throw new Error(
-      "No se puede eliminar esta aula porque todavía tiene estudiantes matriculados o asistencias registradas. Muévelos primero."
-    );
+    return {
+      error:
+        "No se puede eliminar esta aula porque todavía tiene estudiantes matriculados o asistencias registradas. Muévelos primero.",
+    };
   }
   revalidatePath("/admin/aulas");
+  return {};
 }
 
 // ---------------------------------------------------------------------------
