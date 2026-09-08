@@ -13,10 +13,14 @@ async function usuarioActual() {
   return { ...usuario, permisos: usuario.permisos ?? [] };
 }
 
-// Revisor = quien tiene permiso para editar el módulo académico (lo definen
-// Roles y Permisos, no un nombre de rol fijo en el código).
+// Revisor = quien tiene el permiso específico de revisión (coordinador
+// docente / director académico), separado de "academico:editar" (que solo
+// significa "puede crear/editar SUS PROPIAS planificaciones"). Antes ambos
+// compartían el mismo permiso y un docente con "academico:editar" marcado
+// terminaba viendo las planificaciones de todos los demás y perdía su botón
+// de crear — lo define Roles y Permisos, no un nombre de rol fijo.
 function esRevisor(permisos: string[]) {
-  return permisos.includes("academico:editar");
+  return permisos.includes("revision_planificaciones:editar");
 }
 
 // Campos de texto libre que se guardan tal cual vienen del formulario.

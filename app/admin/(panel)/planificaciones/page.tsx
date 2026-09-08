@@ -25,10 +25,11 @@ export default async function PlanificacionesPage() {
   const usuario = session?.user as { id?: string; role?: string; name?: string; permisos?: string[] } | undefined;
   const permisos = usuario?.permisos ?? [];
   const esAdmin = usuario?.role === "ADMIN";
-  // Revisor = quien tiene permiso para editar el módulo académico, según
-  // Roles y Permisos (no un nombre de rol fijo) — hoy son ADMIN, DIRECTOR_ACADEMICO
-  // y COORDINADOR_DOCENTE, pero el que decide es el permiso, no el nombre.
-  const esRevisor = permisos.includes("academico:editar");
+  // Revisor = quien tiene el permiso "revision_planificaciones:editar" (según
+  // Roles y Permisos, no un nombre de rol fijo) — separado de "academico:editar",
+  // que solo significa "puede crear/editar sus propias planificaciones". Hoy
+  // lo tienen ADMIN, DIRECTOR_ACADEMICO y COORDINADOR_DOCENTE.
+  const esRevisor = permisos.includes("revision_planificaciones:editar");
 
   const aulaIdsDelDocente = esAdmin
     ? null
