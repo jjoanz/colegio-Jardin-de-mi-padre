@@ -26,7 +26,7 @@ export default async function SolicitudesPage() {
       orderBy: { nombre: "asc" },
     }),
     prisma.nivel.findMany({ select: { id: true, nombre: true } }),
-    prisma.grado.findMany({ select: { id: true, nombre: true } }),
+    prisma.grado.findMany({ where: { activo: true }, include: { nivel: true }, orderBy: { ordenVisual: "asc" } }),
   ]);
 
   const correos = solicitudes.map((s) => s.emailTutor).filter((e): e is string => !!e);
@@ -111,6 +111,14 @@ export default async function SolicitudesPage() {
                         Confirmo que es la misma persona — actualizar sus datos
                       </label>
                     )}
+                    <select name="gradoId" className="rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm">
+                      <option value="">Sin grado (usa el precio del nivel)</option>
+                      {grados.map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.nivel.nombre} — {g.nombre}
+                        </option>
+                      ))}
+                    </select>
                     <select name="aulaId" className="rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm">
                       <option value="">Sin aula asignada por ahora</option>
                       {aulas.map((a) => (

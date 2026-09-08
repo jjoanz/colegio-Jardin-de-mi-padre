@@ -72,6 +72,9 @@ export async function aprobarSolicitud(formData: FormData) {
   await requierePermiso("inscripciones", "editar");
   const solicitudId = String(formData.get("solicitudId"));
   const aulaId = formData.get("aulaId") ? String(formData.get("aulaId")) : null;
+  // El grado se asigna aquí, al aprobar — el formulario público solo pregunta
+  // el nivel; el personal decide el grado exacto (y con cuál aula) al aceptar.
+  const gradoId = formData.get("gradoId") ? String(formData.get("gradoId")) : null;
   const planPago = formData.get("planPago") ? (String(formData.get("planPago")) as PlanPago) : null;
   const confirmarActualizarTutor = formData.get("confirmarActualizarTutor") === "on";
 
@@ -159,7 +162,7 @@ export async function aprobarSolicitud(formData: FormData) {
         apellido: apellidoEstudiante,
         fechaNacimiento: fechaNacimiento,
         nivelId: solicitud.nivelInteresId,
-        gradoId: solicitud.gradoInteresId,
+        gradoId: gradoId,
         genero: solicitud.sexo ?? undefined,
         observaciones,
         estado: "ACTIVO",
@@ -206,10 +209,10 @@ export async function aprobarSolicitud(formData: FormData) {
       });
     }
 
-    // 6. Generar el cargo inicial de inscripción — si eligió grado, su precio
-    //    manda sobre el del nivel.
-    if (solicitud.gradoInteresId) {
-      const grado = await tx.grado.findUnique({ where: { id: solicitud.gradoInteresId }, include: { nivel: true } });
+    // 6. Generar el cargo inicial de inscripción — si el personal le asignó
+    //    grado al aprobar, su precio manda sobre el del nivel.
+    if (gradoId) {
+      const grado = await tx.grado.findUnique({ where: { id: gradoId }, include: { nivel: true } });
       if (grado) {
         await tx.cargo.create({
           data: {
