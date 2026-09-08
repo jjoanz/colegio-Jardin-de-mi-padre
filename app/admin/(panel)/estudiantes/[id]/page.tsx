@@ -49,6 +49,7 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
   });
 
   const niveles = await prisma.nivel.findMany({ where: { activo: true }, orderBy: { ordenVisual: "asc" } });
+  const grados = await prisma.grado.findMany({ select: { id: true, nombre: true } });
 
   const totalCargos = estudiante.cargos.reduce((s, c) => s + Number(c.monto), 0);
   const totalPagado = estudiante.cargos.reduce(
@@ -417,7 +418,7 @@ export default async function EstudianteDetailPage({ params }: { params: Promise
                   Formulario de inscripción completo (como se envió originalmente)
                 </summary>
                 <div className="mt-3">
-                  <DetalleSolicitud solicitud={solicitudOriginal} />
+                  <DetalleSolicitud solicitud={solicitudOriginal} niveles={niveles} grados={grados} />
                 </div>
               </details>
             </section>

@@ -555,6 +555,8 @@ model Estudiante {
 
   nivelId        String?
   nivel          Nivel?           @relation(fields: [nivelId], references: [id])
+  gradoId        String?
+  grado          Grado?           @relation(fields: [gradoId], references: [id])
 
   tutores        EstudianteTutor[]
   documentos     Documento[]
@@ -598,8 +600,46 @@ model Nivel {
   aulas           Aula[]
   materias        Materia[]
   imagenes        ImagenSitio[]
+  grados          Grado[]
+  costosAdicionales CargoAdicional[]
 
   @@index([activo])
+}
+
+// Un grado vive dentro de un nivel (ej. "1ro" dentro de "Nivel de Primaria")
+// y tiene su propio precio — cuando un aula tiene grado asignado, ese precio
+// gana sobre el del nivel al generar cargos.
+model Grado {
+  id                String   @id @default(cuid())
+  nivelId           String
+  nombre            String   // "1ro", "2do", etc.
+  tarifaInscripcion Decimal  @db.Decimal(10, 2)
+  colegiaturaAnual  Decimal  @db.Decimal(10, 2) @default(0)
+  diaPago           Int      @default(5)
+  activo            Boolean  @default(true)
+  ordenVisual       Int      @default(0)
+
+  nivel       Nivel        @relation(fields: [nivelId], references: [id], onDelete: Cascade)
+  aulas       Aula[]
+  estudiantes Estudiante[]
+
+  @@index([nivelId])
+}
+
+// Catálogo de costos opcionales por nivel (libros, uniformes, etc.) que el
+// personal puede aplicarle a un estudiante con un clic al cobrar, en vez de
+// escribir el monto a mano cada vez. No se cobra nada automáticamente.
+model CargoAdicional {
+  id          String  @id @default(cuid())
+  nivelId     String
+  nombre      String  // "Libros", "Uniforme", etc.
+  monto       Decimal @db.Decimal(10, 2)
+  descripcion String?
+  activo      Boolean @default(true)
+
+  nivel Nivel @relation(fields: [nivelId], references: [id], onDelete: Cascade)
+
+  @@index([nivelId])
 }
 
 // ---------------------------------------------------------------------------
@@ -872,6 +912,7 @@ enum TipoPregunta {
   OPCION_MULTIPLE
   CASILLA
   SELECT_NIVEL   // opciones se llenan solas desde la tabla Nivel
+  SELECT_GRADO   // opciones se llenan solas desde la tabla Grado, filtradas por el nivel elegido
   SELECT_CUIDO   // opciones se llenan solas desde la tabla ProgramaCuido
   ARCHIVO        // adjuntar imagen/PDF (ej. comprobante de pago, carta compromiso)
 }
@@ -885,6 +926,7 @@ enum RolSistemaPregunta {
   APELLIDO_ESTUDIANTE
   FECHA_NACIMIENTO_ESTUDIANTE
   NIVEL_INTERES
+  GRADO_INTERES
   NOMBRE_CONTACTO
   TELEFONO_CONTACTO
   EMAIL_CONTACTO
@@ -1030,6 +1072,7 @@ model SolicitudInscripcion {
   religion          String?
   fotoUrl           String? // se sube después desde el panel admin, no en el form público
   nivelInteresId    String?
+  gradoInteresId    String?
 
   // --- Información médica ---
   padeceEnfermedad  Boolean @default(false)
@@ -1176,12 +1219,14 @@ model Aula {
   id            String      @id @default(cuid())
   nombre        String      // "1ro A", "Kínder Matutino B"
   nivelId       String
+  gradoId       String?     // opcional: cuando lo tiene, su precio manda sobre el del nivel
   tanda         Tanda
   capacidad     Int
   anioEscolarId String
   activa        Boolean     @default(true)
 
   nivel         Nivel       @relation(fields: [nivelId], references: [id])
+  grado         Grado?      @relation(fields: [gradoId], references: [id])
   anioEscolar   AnioEscolar @relation(fields: [anioEscolarId], references: [id])
   matriculas    Matricula[]
   planificaciones PlanificacionDocente[]

@@ -1,20 +1,23 @@
 import { prisma } from "@/lib/prisma";
 import { crearAula, actualizarAula } from "@/lib/actions";
 import { BotonGuardar } from "@/components/BotonGuardar";
+import { SelectGradoPorNivel } from "@/components/SelectGradoPorNivel";
 
 export const dynamic = "force-dynamic";
 
 export default async function AulasPage() {
-  const [aulas, niveles, aniosEscolares] = await Promise.all([
+  const [aulas, niveles, grados, aniosEscolares] = await Promise.all([
     prisma.aula.findMany({
       orderBy: [{ anioEscolar: { fechaInicio: "desc" } }, { nombre: "asc" }],
       include: {
         nivel: true,
+        grado: true,
         anioEscolar: true,
         matriculas: { where: { estado: "ACTIVA" } },
       },
     }),
     prisma.nivel.findMany({ where: { activo: true }, orderBy: { ordenVisual: "asc" } }),
+    prisma.grado.findMany({ where: { activo: true }, orderBy: { ordenVisual: "asc" } }),
     prisma.anioEscolar.findMany({ orderBy: { fechaInicio: "desc" } }),
   ]);
 
@@ -37,6 +40,7 @@ export default async function AulasPage() {
             <tr>
               <th className="px-3 py-2">Nombre</th>
               <th className="px-3 py-2">Nivel</th>
+              <th className="px-3 py-2">Grado</th>
               <th className="px-3 py-2">Tanda</th>
               <th className="px-3 py-2">Año escolar</th>
               <th className="px-3 py-2">Cupo</th>
@@ -54,6 +58,18 @@ export default async function AulasPage() {
                     <input form={formId} name="nombre" defaultValue={a.nombre} className={cellInput} />
                   </td>
                   <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">{a.nivel.nombre}</td>
+                  <td className="px-2 py-1.5">
+                    <select form={formId} name="gradoId" defaultValue={a.gradoId ?? ""} className={cellInput}>
+                      <option value="">Sin grado específico</option>
+                      {grados
+                        .filter((g) => g.nivelId === a.nivelId)
+                        .map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.nombre}
+                          </option>
+                        ))}
+                    </select>
+                  </td>
                   <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">{a.tanda}</td>
                   <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">{a.anioEscolar.nombre}</td>
                   <td className="px-2 py-1.5">
@@ -87,7 +103,7 @@ export default async function AulasPage() {
             })}
             {aulas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-[var(--color-ink-soft)]">
+                <td colSpan={9} className="px-4 py-8 text-center text-[var(--color-ink-soft)]">
                   Aún no hay aulas creadas. Agregá la primera abajo.
                 </td>
               </tr>
@@ -100,16 +116,9 @@ export default async function AulasPage() {
         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
           + Agregar aula nueva
         </p>
-        <form action={crearAula} className="grid grid-cols-2 gap-2 md:grid-cols-5">
+        <form action={crearAula} className="grid grid-cols-2 gap-2 md:grid-cols-6">
           <input name="nombre" placeholder="Nombre" required className={cellInput} />
-          <select name="nivelId" required className={cellInput}>
-            <option value="">Nivel…</option>
-            {niveles.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.nombre}
-              </option>
-            ))}
-          </select>
+          <SelectGradoPorNivel grados={grados} niveles={niveles} className={cellInput} />
           <select name="tanda" required className={cellInput}>
             <option value="MATUTINA">Matutina</option>
             <option value="VESPERTINA">Vespertina</option>
@@ -126,7 +135,7 @@ export default async function AulasPage() {
           <input name="capacidad" type="number" placeholder="Cupo" required className={cellInput} />
           <BotonGuardar
             textoGuardado="✓ Creada"
-            className="col-span-2 rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-5"
+            className="col-span-2 rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-6"
           >
             Crear aula
           </BotonGuardar>

@@ -53,7 +53,7 @@ export default async function PortalEstudiantePage({ params }: { params: Promise
       },
       facturas: { orderBy: { fechaEmision: "desc" } },
       matriculas: {
-        include: { aula: { include: { nivel: true } }, anioEscolar: true },
+        include: { aula: { include: { nivel: true, grado: true } }, anioEscolar: true },
         orderBy: { anioEscolar: { fechaInicio: "desc" } },
       },
       asistencias: {
@@ -104,7 +104,8 @@ export default async function PortalEstudiantePage({ params }: { params: Promise
                 <div>
                   <p className="font-semibold text-[var(--color-ink)]">{m.anioEscolar.nombre}</p>
                   <p className="text-xs text-[var(--color-ink-soft)]">
-                    {m.aula.nivel.nombre} · Aula {m.aula.nombre}
+                    {m.aula.nivel.nombre}
+                    {m.aula.grado && ` - ${m.aula.grado.nombre}`} · Aula {m.aula.nombre}
                   </p>
                 </div>
                 <span className="rounded-full bg-[var(--color-paper-dark)] px-2.5 py-1 text-xs font-semibold text-[var(--color-ink)]">

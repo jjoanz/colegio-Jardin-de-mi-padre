@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
           ? new Date(fechaNacimientoValor)
           : null,
       nivelInteresId: (porRol.NIVEL_INTERES as string) || null,
+      gradoInteresId: (porRol.GRADO_INTERES as string) || null,
       nombreTutor: (porRol.NOMBRE_CONTACTO as string) || null,
       telefonoTutor: (porRol.TELEFONO_CONTACTO as string) || null,
       emailTutor: (porRol.EMAIL_CONTACTO as string) || null,

@@ -6,8 +6,12 @@ type FormularioCompleto = FormularioVersion & {
   })[];
 };
 
+type OpcionNombre = { id: string; nombre: string };
+
 type Props = {
   solicitud: SolicitudInscripcion & { formularioVersion: FormularioCompleto | null };
+  niveles?: OpcionNombre[];
+  grados?: OpcionNombre[];
 };
 
 // Muestra toda la información capturada en la solicitud, antes de aprobarla.
@@ -15,14 +19,14 @@ type Props = {
 // secciones/preguntas y traduce las respuestas guardadas en `respuestas`
 // (JSON keyed por la clave de cada pregunta). Si es una solicitud vieja sin
 // formulario dinámico asociado, muestra los campos fijos agrupados a mano.
-export function DetalleSolicitud({ solicitud: s }: Props) {
+export function DetalleSolicitud({ solicitud: s, niveles = [], grados = [] }: Props) {
   if (s.formularioVersion) {
     const respuestas = (s.respuestas as Record<string, unknown> | null) ?? {};
     return (
       <div className="space-y-4">
         {s.formularioVersion.secciones.map((seccion) => {
           const filas = seccion.preguntas
-            .map((p) => ({ pregunta: p, valor: formatearRespuesta(p, respuestas[p.clave]) }))
+            .map((p) => ({ pregunta: p, valor: formatearRespuesta(p, respuestas[p.clave], niveles, grados) }))
             .filter((f) => f.valor !== null);
           if (filas.length === 0) return null;
           return (
@@ -48,14 +52,27 @@ export function DetalleSolicitud({ solicitud: s }: Props) {
   return <CamposFijos s={s} />;
 }
 
-function formatearRespuesta(pregunta: FormPregunta & { opciones: FormOpcion[] }, valor: unknown): string | null {
+function formatearRespuesta(
+  pregunta: FormPregunta & { opciones: FormOpcion[] },
+  valor: unknown,
+  niveles: OpcionNombre[],
+  grados: OpcionNombre[]
+): string | null {
   if (valor === null || valor === undefined || valor === "") return null;
   if (pregunta.tipo === "CASILLA") return valor ? "Sí" : null;
   if (pregunta.tipo === "OPCION_MULTIPLE" && Array.isArray(valor)) {
     const etiquetas = valor.map((v) => pregunta.opciones.find((o) => o.valor === v)?.etiqueta ?? String(v));
     return etiquetas.length > 0 ? etiquetas.join(", ") : null;
   }
-  if (pregunta.tipo === "OPCION_UNICA" || pregunta.tipo === "SELECT_NIVEL" || pregunta.tipo === "SELECT_CUIDO") {
+  // SELECT_NIVEL/SELECT_GRADO/SELECT_CUIDO se llenan solos desde sus tablas
+  // (nunca tienen FormOpcion guardadas), así que se resuelven aparte.
+  if (pregunta.tipo === "SELECT_NIVEL") {
+    return niveles.find((n) => n.id === valor)?.nombre ?? String(valor);
+  }
+  if (pregunta.tipo === "SELECT_GRADO") {
+    return grados.find((g) => g.id === valor)?.nombre ?? String(valor);
+  }
+  if (pregunta.tipo === "OPCION_UNICA" || pregunta.tipo === "SELECT_CUIDO") {
     const etiqueta = pregunta.opciones.find((o) => o.valor === valor)?.etiqueta;
     return etiqueta ?? String(valor);
   }

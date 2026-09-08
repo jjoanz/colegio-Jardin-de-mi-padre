@@ -6,7 +6,7 @@ import { BotonGuardar } from "@/components/BotonGuardar";
 export const dynamic = "force-dynamic";
 
 export default async function SolicitudesPage() {
-  const [solicitudes, aulas] = await Promise.all([
+  const [solicitudes, aulas, niveles, grados] = await Promise.all([
     prisma.solicitudInscripcion.findMany({
       orderBy: { creadaEn: "desc" },
       include: {
@@ -25,6 +25,8 @@ export default async function SolicitudesPage() {
       include: { nivel: true, anioEscolar: true },
       orderBy: { nombre: "asc" },
     }),
+    prisma.nivel.findMany({ select: { id: true, nombre: true } }),
+    prisma.grado.findMany({ select: { id: true, nombre: true } }),
   ]);
 
   const correos = solicitudes.map((s) => s.emailTutor).filter((e): e is string => !!e);
@@ -71,7 +73,7 @@ export default async function SolicitudesPage() {
                   Ver información completa
                 </summary>
                 <div className="mt-3">
-                  <DetalleSolicitud solicitud={s} />
+                  <DetalleSolicitud solicitud={s} niveles={niveles} grados={grados} />
                 </div>
               </details>
 

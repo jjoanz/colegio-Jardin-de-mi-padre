@@ -14,6 +14,7 @@ type FormPreguntaData = {
   requerida: boolean;
   placeholder: string | null;
   opciones: FormOpcionData[];
+  rolSistema?: string | null;
 };
 type FormSeccionData = {
   id: string;
@@ -32,15 +33,19 @@ type CondicionData = {
   seccionObjetivoId: string | null;
 };
 
+type GradoOpcion = { id: string; nombre: string; nivelId: string };
+
 export function InscripcionFormDinamico({
   formulario,
   condiciones,
   niveles,
+  grados,
   programasCuido,
 }: {
   formulario: FormularioData;
   condiciones: CondicionData[];
   niveles: Opcion[];
+  grados: GradoOpcion[];
   programasCuido: Opcion[];
 }) {
   const [estado, setEstado] = useState<"idle" | "enviando" | "exito" | "error">("idle");
@@ -50,11 +55,15 @@ export function InscripcionFormDinamico({
 
   // Mapear id de pregunta -> clave (para resolver a qué campo watchear)
   const claveDePregunta: Record<string, string> = {};
+  let claveNivelInteres: string | undefined;
   for (const seccion of formulario.secciones) {
     for (const pregunta of seccion.preguntas) {
       claveDePregunta[pregunta.id] = pregunta.clave;
+      if (pregunta.rolSistema === "NIVEL_INTERES") claveNivelInteres = pregunta.clave;
     }
   }
+  const nivelElegidoId = claveNivelInteres ? (watch(claveNivelInteres) as string | undefined) : undefined;
+  const gradosDelNivelElegido = grados.filter((g) => g.nivelId === nivelElegidoId);
 
   const condicionesPorPregunta: Record<string, { origenClave: string; valorEsperado: string }[]> = {};
   const condicionesPorSeccion: Record<string, { origenClave: string; valorEsperado: string }[]> = {};
@@ -192,6 +201,8 @@ export function InscripcionFormDinamico({
                       pregunta={pregunta}
                       register={register}
                       niveles={niveles}
+                      gradosDelNivelElegido={gradosDelNivelElegido}
+                      nivelElegidoId={nivelElegidoId}
                       programasCuido={programasCuido}
                     />
                   </div>
@@ -234,12 +245,16 @@ function PreguntaCampo({
   pregunta,
   register,
   niveles,
+  gradosDelNivelElegido,
+  nivelElegidoId,
   programasCuido,
 }: {
   pregunta: FormPreguntaData;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   register: any;
   niveles: Opcion[];
+  gradosDelNivelElegido: GradoOpcion[];
+  nivelElegidoId: string | undefined;
   programasCuido: Opcion[];
 }) {
   const label = (
@@ -326,6 +341,26 @@ function PreguntaCampo({
             {niveles.map((n) => (
               <option key={n.id} value={n.id}>
                 {n.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+      );
+    case "SELECT_GRADO":
+      return (
+        <label className="block">
+          {label}
+          <select {...register(pregunta.clave)} className={inputClass} disabled={!nivelElegidoId}>
+            <option value="">
+              {!nivelElegidoId
+                ? "Primero elige el nivel"
+                : gradosDelNivelElegido.length === 0
+                ? "Este nivel no tiene grados específicos"
+                : "Seleccionar…"}
+            </option>
+            {gradosDelNivelElegido.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nombre}
               </option>
             ))}
           </select>

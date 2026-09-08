@@ -1,17 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { crearCargo, actualizarCargo, anularCargo } from "@/lib/actions";
 import { BotonGuardar } from "@/components/BotonGuardar";
+import { AplicarCostoAdicional } from "@/components/AplicarCostoAdicional";
 
 export const dynamic = "force-dynamic";
 
 export default async function CargosPage() {
-  const [cargos, estudiantes, especiales] = await Promise.all([
+  const [cargos, estudiantes, especiales, costosAdicionales] = await Promise.all([
     prisma.cargo.findMany({
       orderBy: { fechaEmision: "desc" },
       include: { estudiante: true, pagos: true },
     }),
     prisma.estudiante.findMany({ orderBy: { nombre: "asc" } }),
     prisma.especial.findMany({ where: { activo: true } }),
+    prisma.cargoAdicional.findMany({ where: { activo: true }, include: { nivel: true }, orderBy: { nombre: "asc" } }),
   ]);
 
   return (
@@ -109,8 +111,15 @@ export default async function CargosPage() {
             <option value="CAMPAMENTO">Campamento</option>
             <option value="OTRO">Otro</option>
           </select>
-          <input name="descripcion" placeholder="Descripción (ej. Cuido - Enero 2026)" required className={inputClass} />
-          <input name="monto" type="number" step="0.01" placeholder="Monto (RD$)" required className={inputClass} />
+          <AplicarCostoAdicional
+            costos={costosAdicionales.map((c) => ({
+              id: c.id,
+              nombre: c.nombre,
+              monto: Number(c.monto),
+              nivelNombre: c.nivel.nombre,
+            }))}
+            className={inputClass}
+          />
           <select name="especialId" className={inputClass}>
             <option value="">Sin especial/descuento</option>
             {especiales.map((es) => (

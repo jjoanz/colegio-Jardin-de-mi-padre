@@ -159,6 +159,7 @@ export async function aprobarSolicitud(formData: FormData) {
         apellido: apellidoEstudiante,
         fechaNacimiento: fechaNacimiento,
         nivelId: solicitud.nivelInteresId,
+        gradoId: solicitud.gradoInteresId,
         genero: solicitud.sexo ?? undefined,
         observaciones,
         estado: "ACTIVO",
@@ -205,8 +206,22 @@ export async function aprobarSolicitud(formData: FormData) {
       });
     }
 
-    // 6. Generar el cargo inicial de matrícula si el nivel tiene tarifa
-    if (solicitud.nivelInteresId) {
+    // 6. Generar el cargo inicial de matrícula — si eligió grado, su precio
+    //    manda sobre el del nivel.
+    if (solicitud.gradoInteresId) {
+      const grado = await tx.grado.findUnique({ where: { id: solicitud.gradoInteresId }, include: { nivel: true } });
+      if (grado) {
+        await tx.cargo.create({
+          data: {
+            estudianteId: estudiante.id,
+            concepto: ConceptoCargo.MATRICULA,
+            descripcion: `Matrícula - ${grado.nivel.nombre} ${grado.nombre}`,
+            monto: grado.tarifaInscripcion,
+            anioEscolarId,
+          },
+        });
+      }
+    } else if (solicitud.nivelInteresId) {
       const nivel = await tx.nivel.findUnique({ where: { id: solicitud.nivelInteresId } });
       if (nivel) {
         await tx.cargo.create({
@@ -890,6 +905,7 @@ export async function crearAula(formData: FormData) {
     data: {
       nombre: String(formData.get("nombre")),
       nivelId: String(formData.get("nivelId")),
+      gradoId: String(formData.get("gradoId") || "") || null,
       tanda: String(formData.get("tanda")) as Tanda,
       capacidad: Number(formData.get("capacidad")),
       anioEscolarId: String(formData.get("anioEscolarId")),
@@ -905,6 +921,7 @@ export async function actualizarAula(formData: FormData) {
     where: { id: aulaId },
     data: {
       nombre: String(formData.get("nombre")),
+      gradoId: String(formData.get("gradoId") || "") || null,
       capacidad: Number(formData.get("capacidad")),
       activa: formData.get("activa") === "on",
     },

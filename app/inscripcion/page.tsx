@@ -5,7 +5,7 @@ import { InscripcionFormDinamico } from "@/components/InscripcionFormDinamico";
 export const dynamic = "force-dynamic";
 
 export default async function InscripcionPage() {
-  const [formulario, niveles, programasCuido] = await Promise.all([
+  const [formulario, niveles, grados, programasCuido] = await Promise.all([
     prisma.formularioVersion.findFirst({
       where: { estado: "PUBLICADO" },
       include: {
@@ -21,6 +21,7 @@ export default async function InscripcionPage() {
       },
     }),
     prisma.nivel.findMany({ where: { activo: true }, orderBy: { ordenVisual: "asc" } }),
+    prisma.grado.findMany({ where: { activo: true }, orderBy: { ordenVisual: "asc" } }),
     prisma.programaCuido.findMany({ where: { activo: true } }),
   ]);
 
@@ -54,6 +55,7 @@ export default async function InscripcionPage() {
               formulario={formulario}
               condiciones={condiciones}
               niveles={niveles.map((n) => ({ id: n.id, nombre: n.nombre }))}
+              grados={grados.map((g) => ({ id: g.id, nombre: g.nombre, nivelId: g.nivelId }))}
               programasCuido={programasCuido.map((p) => ({ id: p.id, nombre: p.nombre }))}
             />
           ) : (

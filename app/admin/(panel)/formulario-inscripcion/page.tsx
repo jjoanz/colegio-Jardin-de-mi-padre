@@ -26,6 +26,7 @@ const TIPOS_PREGUNTA = [
   { value: "OPCION_MULTIPLE", label: "Opción múltiple (checkboxes)" },
   { value: "CASILLA", label: "Casilla (sí/no)" },
   { value: "SELECT_NIVEL", label: "Selector de Nivel (automático)" },
+  { value: "SELECT_GRADO", label: "Selector de Grado (automático, según el nivel elegido)" },
   { value: "SELECT_CUIDO", label: "Selector de Programa de cuido (automático)" },
 ];
 
@@ -35,6 +36,7 @@ const ROLES_SISTEMA = [
   { value: "APELLIDO_ESTUDIANTE", label: "Apellido del estudiante" },
   { value: "FECHA_NACIMIENTO_ESTUDIANTE", label: "Fecha de nacimiento del estudiante" },
   { value: "NIVEL_INTERES", label: "Nivel de interés" },
+  { value: "GRADO_INTERES", label: "Grado de interés" },
   { value: "NOMBRE_CONTACTO", label: "Nombre del contacto principal" },
   { value: "TELEFONO_CONTACTO", label: "Teléfono del contacto principal" },
   { value: "EMAIL_CONTACTO", label: "Correo del contacto principal" },

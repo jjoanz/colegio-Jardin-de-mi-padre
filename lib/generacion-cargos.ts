@@ -57,7 +57,7 @@ async function generarCargosPendientesInterno(): Promise<number> {
     where: { estado: "ACTIVA", planPago: { not: null } },
     include: {
       anioEscolar: true,
-      aula: { include: { nivel: true } },
+      aula: { include: { nivel: true, grado: true } },
     },
   });
   if (matriculas.length === 0) return 0;
@@ -74,8 +74,9 @@ async function generarCargosPendientesInterno(): Promise<number> {
   );
 
   for (const m of matriculas) {
-    const nivel = m.aula.nivel;
-    const colegiaturaAnual = Number(nivel.colegiaturaAnual);
+    // Si el aula tiene un grado asignado, su precio manda sobre el del nivel.
+    const precios = m.aula.grado ?? m.aula.nivel;
+    const colegiaturaAnual = Number(precios.colegiaturaAnual);
     if (colegiaturaAnual <= 0 || !m.planPago) continue;
 
     const totalCuotas = totalCuotasDePlan(m.planPago);
@@ -91,7 +92,7 @@ async function generarCargosPendientesInterno(): Promise<number> {
       const vencimiento = fechaVencimientoCuota(
         m.anioEscolar.fechaInicio,
         m.anioEscolar.fechaFin,
-        nivel.diaPago,
+        precios.diaPago,
         numeroCuota,
         totalCuotas
       );
