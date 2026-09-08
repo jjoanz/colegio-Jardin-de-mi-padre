@@ -40,7 +40,7 @@ export default async function SolicitudesPage() {
       </h1>
       <p className="mt-1 text-[var(--color-ink-soft)]">
         Revisa las solicitudes enviadas desde la página pública. Al aprobar, se crea
-        el expediente del estudiante, el del padre, madre o tutor, el cargo de matrícula y —si eliges
+        el expediente del estudiante, el del padre, madre o tutor, el cargo de inscripción y —si eliges
         un aula— la matrícula queda en su historial académico.
       </p>
 

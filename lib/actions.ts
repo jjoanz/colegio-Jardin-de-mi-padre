@@ -206,7 +206,7 @@ export async function aprobarSolicitud(formData: FormData) {
       });
     }
 
-    // 6. Generar el cargo inicial de matrícula — si eligió grado, su precio
+    // 6. Generar el cargo inicial de inscripción — si eligió grado, su precio
     //    manda sobre el del nivel.
     if (solicitud.gradoInteresId) {
       const grado = await tx.grado.findUnique({ where: { id: solicitud.gradoInteresId }, include: { nivel: true } });
@@ -215,7 +215,7 @@ export async function aprobarSolicitud(formData: FormData) {
           data: {
             estudianteId: estudiante.id,
             concepto: ConceptoCargo.MATRICULA,
-            descripcion: `Matrícula - ${grado.nivel.nombre} ${grado.nombre}`,
+            descripcion: `Inscripción - ${grado.nivel.nombre} ${grado.nombre}`,
             monto: grado.tarifaInscripcion,
             anioEscolarId,
           },
@@ -228,7 +228,7 @@ export async function aprobarSolicitud(formData: FormData) {
           data: {
             estudianteId: estudiante.id,
             concepto: ConceptoCargo.MATRICULA,
-            descripcion: `Matrícula - ${nivel.nombre}`,
+            descripcion: `Inscripción - ${nivel.nombre}`,
             monto: nivel.tarifaInscripcion,
             anioEscolarId,
           },
@@ -362,7 +362,7 @@ export async function rechazarSolicitud(solicitudId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// NIVELES ACADÉMICOS (aquí se define el precio de la matrícula)
+// NIVELES ACADÉMICOS (aquí se define el precio de la inscripción)
 // ---------------------------------------------------------------------------
 
 export async function crearNivel(formData: FormData) {
@@ -786,7 +786,7 @@ export async function buscarParaCobro(
 }
 
 // Cobra cada cargo seleccionado por el monto que se indique (puede ser el saldo
-// completo o un abono parcial) — permite mezclar, ej. pagar completa la matrícula
+// completo o un abono parcial) — permite mezclar, ej. pagar completa la inscripción
 // de un hijo y solo un abono de la del otro, en una sola operación.
 export async function registrarPagosMultiples(formData: FormData) {
   const usuario = await requierePermiso("pagos", "crear");

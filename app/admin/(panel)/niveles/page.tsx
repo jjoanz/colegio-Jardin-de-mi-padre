@@ -22,7 +22,7 @@ export default async function NivelesPage() {
         Niveles académicos
       </h1>
       <p className="mt-1 text-[var(--color-ink-soft)]">
-        La matrícula es el pago único de inscripción y se cobra automáticamente al aprobar
+        La inscripción es el pago único que se cobra automáticamente al aprobar
         una solicitud. La colegiatura anual es el costo total del año escolar — el sistema
         la divide sola en cuotas mensuales según el plan de pago de cada estudiante y las
         va generando automáticamente en el día de pago que definas aquí. Si los grados de
@@ -46,7 +46,7 @@ export default async function NivelesPage() {
                 <div className="text-right">
                   {n.tarifaInscripcion != null ? (
                     <span className="block rounded-full bg-[var(--color-green)]/10 px-3 py-1 font-mono text-xs font-bold text-[var(--color-green)]">
-                      Matrícula RD$ {Number(n.tarifaInscripcion).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
+                      Inscripción RD$ {Number(n.tarifaInscripcion).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
                     </span>
                   ) : (
                     <span className="block rounded-full bg-[var(--color-paper-dark)] px-3 py-1 text-xs font-semibold text-[var(--color-ink-soft)]">
@@ -68,7 +68,7 @@ export default async function NivelesPage() {
                   <input name="nombre" defaultValue={n.nombre} required className={inputClass} />
                 </label>
                 <label className="text-xs text-[var(--color-ink-soft)]">
-                  Precio de matrícula (RD$) — déjalo en blanco si varía por grado
+                  Precio de inscripción (RD$) — déjalo en blanco si varía por grado
                   <input
                     name="tarifaInscripcion"
                     type="number"
@@ -142,7 +142,7 @@ export default async function NivelesPage() {
                           <input name="nombre" defaultValue={g.nombre} required className={inputClass} />
                         </label>
                         <label className="text-xs text-[var(--color-ink-soft)]">
-                          Precio de matrícula (RD$)
+                          Precio de inscripción (RD$)
                           <input name="tarifaInscripcion" type="number" step="0.01" defaultValue={Number(g.tarifaInscripcion)} required className={inputClass} />
                         </label>
                         <label className="text-xs text-[var(--color-ink-soft)]">
@@ -247,7 +247,7 @@ export default async function NivelesPage() {
                   <form action={crearGrado} className="mt-2 grid gap-2 md:grid-cols-2">
                     <input type="hidden" name="nivelId" value={n.id} />
                     <input name="nombre" placeholder="Nombre (ej. 1ro)" required className={inputClass} />
-                    <input name="tarifaInscripcion" type="number" step="0.01" placeholder="Precio de matrícula (RD$)" required className={inputClass} />
+                    <input name="tarifaInscripcion" type="number" step="0.01" placeholder="Precio de inscripción (RD$)" required className={inputClass} />
                     <input name="colegiaturaAnual" type="number" step="0.01" placeholder="Colegiatura anual (RD$)" className={inputClass} />
                     <input name="diaPago" type="number" min="1" max="28" placeholder="Día de pago (1-28)" defaultValue={5} className={inputClass} />
                     <BotonGuardar
@@ -277,7 +277,7 @@ export default async function NivelesPage() {
             name="tarifaInscripcion"
             type="number"
             step="0.01"
-            placeholder="Precio de matrícula (RD$) — opcional si varía por grado"
+            placeholder="Precio de inscripción (RD$) — opcional si varía por grado"
             className={inputClass}
           />
           <input name="colegiaturaAnual" type="number" step="0.01" placeholder="Colegiatura anual (RD$)" className={inputClass} />

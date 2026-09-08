@@ -135,7 +135,7 @@ export default async function FacturacionAutomaticaPage() {
       ))}
       <p className="mt-2 text-xs text-[var(--color-ink-soft)]">
         Si un nivel tiene colegiatura en RD$0, no se le generan cuotas de mensualidad (solo la
-        matrícula, si aplica). El plan de pago de cada estudiante (pago único, dos pagos o diez
+        inscripción, si aplica). El plan de pago de cada estudiante (pago único, dos pagos o diez
         cuotas) se elige al aprobarlo o en su expediente.
       </p>
     </div>

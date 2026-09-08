@@ -26,7 +26,7 @@ export default async function CargosPage() {
         Cargos
       </h1>
       <p className="mt-1 text-[var(--color-ink-soft)]">
-        Matrículas, mensualidades, cuido y actividades pendientes de cobro. Un cargo solo
+        Inscripciones, mensualidades, cuido y actividades pendientes de cobro. Un cargo solo
         se puede editar o anular mientras no tenga pagos registrados.
       </p>
 
@@ -56,7 +56,7 @@ export default async function CargosPage() {
                     <form action={actualizarCargo} className="grid gap-3 md:grid-cols-2">
                       <input type="hidden" name="cargoId" value={c.id} />
                       <select name="concepto" defaultValue={c.concepto} required className={inputClass}>
-                        <option value="MATRICULA">Matrícula</option>
+                        <option value="MATRICULA">Inscripción</option>
                         <option value="MENSUALIDAD">Mensualidad</option>
                         <option value="CUIDO">Cuido</option>
                         <option value="ACTIVIDAD">Actividad</option>
@@ -108,7 +108,7 @@ export default async function CargosPage() {
             ))}
           </select>
           <select name="concepto" required className={inputClass}>
-            <option value="MATRICULA">Matrícula</option>
+            <option value="MATRICULA">Inscripción</option>
             <option value="MENSUALIDAD">Mensualidad</option>
             <option value="CUIDO">Cuido</option>
             <option value="ACTIVIDAD">Actividad</option>
