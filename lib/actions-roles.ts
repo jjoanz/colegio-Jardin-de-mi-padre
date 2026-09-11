@@ -81,18 +81,34 @@ export async function eliminarRol(formData: FormData) {
 // lista, se entiende que se desmarcó y se elimina.
 export async function actualizarPermisosRol(formData: FormData) {
   const roleId = String(formData.get("roleId"));
-  const permisoIdsSeleccionados = formData.getAll("permisoIds").map(String);
+  const permisoIdsSeleccionados = new Set(formData.getAll("permisoIds").map(String));
 
   const role = await prisma.role.findUniqueOrThrow({ where: { id: roleId } });
   if (role.nombre === "ADMIN") {
     throw new Error("El rol ADMIN siempre mantiene todos los permisos y no se puede modificar.");
   }
 
+  // El middleware exige el permiso "ver" de un módulo para dejar entrar a esa
+  // sección del panel — así que marcar solo "crear"/"editar"/"eliminar" sin
+  // "ver" deja un permiso que en la práctica no habilita nada (el usuario
+  // termina en "sin acceso"). Para evitar esa trampa, "ver" se agrega solo
+  // automáticamente cuando se marca cualquier otra acción de ese módulo.
+  const permisos = await prisma.permission.findMany();
+  const permisoPorId = new Map(permisos.map((p) => [p.id, p]));
+  const verPorModulo = new Map(permisos.filter((p) => p.accion === "ver").map((p) => [p.modulo, p.id]));
+
+  for (const id of permisoIdsSeleccionados) {
+    const permiso = permisoPorId.get(id);
+    if (!permiso || permiso.accion === "ver") continue;
+    const verId = verPorModulo.get(permiso.modulo);
+    if (verId) permisoIdsSeleccionados.add(verId);
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.rolePermission.deleteMany({ where: { roleId } });
-    if (permisoIdsSeleccionados.length > 0) {
+    if (permisoIdsSeleccionados.size > 0) {
       await tx.rolePermission.createMany({
-        data: permisoIdsSeleccionados.map((permissionId) => ({ roleId, permissionId })),
+        data: [...permisoIdsSeleccionados].map((permissionId) => ({ roleId, permissionId })),
       });
     }
   });
