@@ -64,138 +64,162 @@ const NOMBRES_DIA: Record<string, string> = {
   SABADO: "sábado",
 };
 
-export async function crearBloqueHorario(formData: FormData) {
-  await requierePermiso("horarios", "crear");
-  const aulaId = String(formData.get("aulaId"));
-  const materiaId = String(formData.get("materiaId"));
-  const docenteId = String(formData.get("docenteId") || "") || null;
-  const anioEscolarId = String(formData.get("anioEscolarId"));
-  const diaSemana = String(formData.get("diaSemana")) as DiaSemana;
-  const horaInicioMin = horaAMinutos(String(formData.get("horaInicio")));
-  const horaFinMin = horaAMinutos(String(formData.get("horaFin")));
+// Server Actions "normales" (las que solo tiran throw new Error) hacen que
+// Next.js reemplace TODA la página por la pantalla genérica de error.tsx en
+// producción, y además oculta el mensaje real. Para errores esperables como
+// un choque de horario, en vez de throw devolvemos { error } y estas dos
+// acciones se usan con useActionState desde componentes cliente, así el
+// mensaje se muestra en el propio formulario sin tumbar el resto del panel.
+export type EstadoBloqueHorario = { error: string | null };
 
-  if (horaFinMin <= horaInicioMin) {
-    throw new Error("La hora de fin debe ser posterior a la hora de inicio.");
-  }
+export async function crearBloqueHorario(
+  _estadoPrevio: EstadoBloqueHorario,
+  formData: FormData
+): Promise<EstadoBloqueHorario> {
+  try {
+    await requierePermiso("horarios", "crear");
+    const aulaId = String(formData.get("aulaId"));
+    const materiaId = String(formData.get("materiaId"));
+    const docenteId = String(formData.get("docenteId") || "") || null;
+    const anioEscolarId = String(formData.get("anioEscolarId"));
+    const diaSemana = String(formData.get("diaSemana")) as DiaSemana;
+    const horaInicioMin = horaAMinutos(String(formData.get("horaInicio")));
+    const horaFinMin = horaAMinutos(String(formData.get("horaFin")));
 
-  const choqueAula = await prisma.bloqueHorario.findFirst({
-    where: {
-      aulaId,
-      diaSemana,
-      anioEscolarId,
-      horaInicioMin: { lt: horaFinMin },
-      horaFinMin: { gt: horaInicioMin },
-    },
-    include: { materia: true },
-  });
-  if (choqueAula) {
-    throw new Error(
-      `Choque de aula: ya hay clase de "${choqueAula.materia.nombre}" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(
-        choqueAula.horaInicioMin
-      )} a ${minutosAHora(choqueAula.horaFinMin)} en esa aula.`
-    );
-  }
+    if (horaFinMin <= horaInicioMin) {
+      throw new Error("La hora de fin debe ser posterior a la hora de inicio.");
+    }
 
-  if (docenteId) {
-    const choqueDocente = await prisma.bloqueHorario.findFirst({
+    const choqueAula = await prisma.bloqueHorario.findFirst({
       where: {
-        docenteId,
+        aulaId,
         diaSemana,
         anioEscolarId,
         horaInicioMin: { lt: horaFinMin },
         horaFinMin: { gt: horaInicioMin },
       },
-      include: { materia: true, aula: true },
+      include: { materia: true },
     });
-    if (choqueDocente) {
+    if (choqueAula) {
       throw new Error(
-        `Choque de profesor: ya tiene clase de "${choqueDocente.materia.nombre}" en el aula "${
-          choqueDocente.aula.nombre
-        }" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(choqueDocente.horaInicioMin)} a ${minutosAHora(
-          choqueDocente.horaFinMin
-        )}.`
+        `Choque de aula: ya hay clase de "${choqueAula.materia.nombre}" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(
+          choqueAula.horaInicioMin
+        )} a ${minutosAHora(choqueAula.horaFinMin)} en esa aula.`
       );
     }
+
+    if (docenteId) {
+      const choqueDocente = await prisma.bloqueHorario.findFirst({
+        where: {
+          docenteId,
+          diaSemana,
+          anioEscolarId,
+          horaInicioMin: { lt: horaFinMin },
+          horaFinMin: { gt: horaInicioMin },
+        },
+        include: { materia: true, aula: true },
+      });
+      if (choqueDocente) {
+        throw new Error(
+          `Choque de profesor: ya tiene clase de "${choqueDocente.materia.nombre}" en el aula "${
+            choqueDocente.aula.nombre
+          }" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(choqueDocente.horaInicioMin)} a ${minutosAHora(
+            choqueDocente.horaFinMin
+          )}.`
+        );
+      }
+    }
+
+    await prisma.bloqueHorario.create({
+      data: {
+        aulaId,
+        materiaId,
+        docenteId,
+        anioEscolarId,
+        diaSemana,
+        horaInicioMin,
+        horaFinMin,
+      },
+    });
+
+    revalidatePath(RUTA);
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Ocurrió un error inesperado." };
   }
-
-  await prisma.bloqueHorario.create({
-    data: {
-      aulaId,
-      materiaId,
-      docenteId,
-      anioEscolarId,
-      diaSemana,
-      horaInicioMin,
-      horaFinMin,
-    },
-  });
-
-  revalidatePath(RUTA);
 }
 
-export async function actualizarBloqueHorario(formData: FormData) {
-  await requierePermiso("horarios", "editar");
-  const bloqueId = String(formData.get("bloqueId"));
-  const materiaId = String(formData.get("materiaId"));
-  const docenteId = String(formData.get("docenteId") || "") || null;
-  const diaSemana = String(formData.get("diaSemana")) as DiaSemana;
-  const horaInicioMin = horaAMinutos(String(formData.get("horaInicio")));
-  const horaFinMin = horaAMinutos(String(formData.get("horaFin")));
+export async function actualizarBloqueHorario(
+  _estadoPrevio: EstadoBloqueHorario,
+  formData: FormData
+): Promise<EstadoBloqueHorario> {
+  try {
+    await requierePermiso("horarios", "editar");
+    const bloqueId = String(formData.get("bloqueId"));
+    const materiaId = String(formData.get("materiaId"));
+    const docenteId = String(formData.get("docenteId") || "") || null;
+    const diaSemana = String(formData.get("diaSemana")) as DiaSemana;
+    const horaInicioMin = horaAMinutos(String(formData.get("horaInicio")));
+    const horaFinMin = horaAMinutos(String(formData.get("horaFin")));
 
-  if (horaFinMin <= horaInicioMin) {
-    throw new Error("La hora de fin debe ser posterior a la hora de inicio.");
-  }
+    if (horaFinMin <= horaInicioMin) {
+      throw new Error("La hora de fin debe ser posterior a la hora de inicio.");
+    }
 
-  const bloqueActual = await prisma.bloqueHorario.findUniqueOrThrow({ where: { id: bloqueId } });
+    const bloqueActual = await prisma.bloqueHorario.findUniqueOrThrow({ where: { id: bloqueId } });
 
-  const choqueAula = await prisma.bloqueHorario.findFirst({
-    where: {
-      id: { not: bloqueId },
-      aulaId: bloqueActual.aulaId,
-      diaSemana,
-      anioEscolarId: bloqueActual.anioEscolarId,
-      horaInicioMin: { lt: horaFinMin },
-      horaFinMin: { gt: horaInicioMin },
-    },
-    include: { materia: true },
-  });
-  if (choqueAula) {
-    throw new Error(
-      `Choque de aula: ya hay clase de "${choqueAula.materia.nombre}" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(
-        choqueAula.horaInicioMin
-      )} a ${minutosAHora(choqueAula.horaFinMin)} en esa aula.`
-    );
-  }
-
-  if (docenteId) {
-    const choqueDocente = await prisma.bloqueHorario.findFirst({
+    const choqueAula = await prisma.bloqueHorario.findFirst({
       where: {
         id: { not: bloqueId },
-        docenteId,
+        aulaId: bloqueActual.aulaId,
         diaSemana,
         anioEscolarId: bloqueActual.anioEscolarId,
         horaInicioMin: { lt: horaFinMin },
         horaFinMin: { gt: horaInicioMin },
       },
-      include: { materia: true, aula: true },
+      include: { materia: true },
     });
-    if (choqueDocente) {
+    if (choqueAula) {
       throw new Error(
-        `Choque de profesor: ya tiene clase de "${choqueDocente.materia.nombre}" en el aula "${
-          choqueDocente.aula.nombre
-        }" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(choqueDocente.horaInicioMin)} a ${minutosAHora(
-          choqueDocente.horaFinMin
-        )}.`
+        `Choque de aula: ya hay clase de "${choqueAula.materia.nombre}" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(
+          choqueAula.horaInicioMin
+        )} a ${minutosAHora(choqueAula.horaFinMin)} en esa aula.`
       );
     }
+
+    if (docenteId) {
+      const choqueDocente = await prisma.bloqueHorario.findFirst({
+        where: {
+          id: { not: bloqueId },
+          docenteId,
+          diaSemana,
+          anioEscolarId: bloqueActual.anioEscolarId,
+          horaInicioMin: { lt: horaFinMin },
+          horaFinMin: { gt: horaInicioMin },
+        },
+        include: { materia: true, aula: true },
+      });
+      if (choqueDocente) {
+        throw new Error(
+          `Choque de profesor: ya tiene clase de "${choqueDocente.materia.nombre}" en el aula "${
+            choqueDocente.aula.nombre
+          }" el ${NOMBRES_DIA[diaSemana]} de ${minutosAHora(choqueDocente.horaInicioMin)} a ${minutosAHora(
+            choqueDocente.horaFinMin
+          )}.`
+        );
+      }
+    }
+
+    await prisma.bloqueHorario.update({
+      where: { id: bloqueId },
+      data: { materiaId, docenteId, diaSemana, horaInicioMin, horaFinMin },
+    });
+
+    revalidatePath(RUTA);
+    return { error: null };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Ocurrió un error inesperado." };
   }
-
-  await prisma.bloqueHorario.update({
-    where: { id: bloqueId },
-    data: { materiaId, docenteId, diaSemana, horaInicioMin, horaFinMin },
-  });
-
-  revalidatePath(RUTA);
 }
 
 export async function eliminarBloqueHorario(formData: FormData) {

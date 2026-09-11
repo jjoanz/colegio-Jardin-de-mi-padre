@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { crearBloqueHorario, actualizarBloqueHorario, eliminarBloqueHorario } from "@/lib/actions-horarios";
-import { BotonGuardar } from "@/components/BotonGuardar";
+import { FilaHorario } from "@/components/horarios/FilaHorario";
+import { FormNuevoBloque } from "@/components/horarios/FormNuevoBloque";
 import type { Prisma } from "@prisma/client";
 
 type AulaConNivel = Prisma.AulaGetPayload<{ include: { nivel: true } }>;
@@ -37,12 +37,6 @@ function minutosAHora(minutos: number): string {
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${m} ${ampm}`;
 }
-function minutosAHora24(minutos: number): string {
-  const h = Math.floor(minutos / 60).toString().padStart(2, "0");
-  const m = (minutos % 60).toString().padStart(2, "0");
-  return `${h}:${m}`;
-}
-
 const PALETA = [
   { bg: "bg-sky-100", border: "border-sky-300", text: "text-sky-900" },
   { bg: "bg-amber-100", border: "border-amber-300", text: "text-amber-900" },
@@ -298,70 +292,16 @@ async function VistaTabla({
             </tr>
           </thead>
           <tbody>
-            {bloques.map((b) => {
-              const formId = `form-bloque-${b.id}`;
-              return (
-                <tr key={b.id} className="border-t border-[var(--color-line)]">
-                  <td className="px-2 py-1.5 text-xs text-[var(--color-ink-soft)]">
-                    {b.aula.nombre} <span className="opacity-70">· {b.aula.nivel.nombre}</span>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select form={formId} name="materiaId" defaultValue={b.materiaId} className={cellInput}>
-                      {materias.map((m) => (
-                        <option key={m.id} value={m.id}>{m.nombre}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select form={formId} name="docenteId" defaultValue={b.docenteId ?? ""} className={cellInput}>
-                      <option value="">Sin asignar</option>
-                      {docentes.map((d) => (
-                        <option key={d.id} value={d.id}>{d.nombre}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <select form={formId} name="diaSemana" defaultValue={b.diaSemana} className={cellInput}>
-                      {DIAS.map((d) => (
-                        <option key={d.value} value={d.value}>{d.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <input
-                      form={formId}
-                      type="time"
-                      name="horaInicio"
-                      defaultValue={minutosAHora24(b.horaInicioMin)}
-                      className={cellInput}
-                    />
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <input
-                      form={formId}
-                      type="time"
-                      name="horaFin"
-                      defaultValue={minutosAHora24(b.horaFinMin)}
-                      className={cellInput}
-                    />
-                  </td>
-                  <td className="px-2 py-1.5 whitespace-nowrap">
-                    <button form={formId} className="rounded-lg bg-[var(--color-green)] px-2.5 py-1.5 text-xs font-bold text-white">
-                      Guardar
-                    </button>
-                    <form id={formId} action={actualizarBloqueHorario} className="hidden">
-                      <input type="hidden" name="bloqueId" value={b.id} />
-                    </form>
-                    <form action={eliminarBloqueHorario} className="mt-1">
-                      <input type="hidden" name="bloqueId" value={b.id} />
-                      <BotonGuardar textoGuardado="✓ Quitado" className="text-xs font-bold text-red-600 disabled:opacity-60">
-                        Quitar
-                      </BotonGuardar>
-                    </form>
-                  </td>
-                </tr>
-              );
-            })}
+            {bloques.map((b) => (
+              <FilaHorario
+                key={b.id}
+                bloque={b}
+                aulaLabel={`${b.aula.nombre} · ${b.aula.nivel.nombre}`}
+                materias={materias}
+                docentes={docentes}
+                dias={DIAS}
+              />
+            ))}
             {bloques.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-[var(--color-ink-soft)]">
@@ -373,53 +313,15 @@ async function VistaTabla({
         </table>
       </div>
 
-      <div className="mt-4 rounded-2xl border border-dashed border-[var(--color-line)] bg-white p-4">
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
-          + Agregar bloque nuevo
-        </p>
-        <form action={crearBloqueHorario} className="grid grid-cols-2 gap-2 md:grid-cols-6">
-          <input type="hidden" name="anioEscolarId" value={anioSeleccionado} />
-          <select name="aulaId" required className={cellInput}>
-            <option value="">Aula…</option>
-            {nivelesDeAulas.map((nivelNombre) => (
-              <optgroup key={nivelNombre} label={nivelNombre}>
-                {aulas.filter((a) => a.nivel.nombre === nivelNombre).map((a) => (
-                  <option key={a.id} value={a.id}>{a.nombre}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <select name="materiaId" required className={cellInput}>
-            <option value="">Materia…</option>
-            {nivelesDeMaterias.map((nivelNombre) => (
-              <optgroup key={nivelNombre} label={nivelNombre}>
-                {materias.filter((m) => etiquetaMateria(m) === nivelNombre).map((m) => (
-                  <option key={m.id} value={m.id}>{m.nombre}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          <select name="docenteId" className={cellInput}>
-            <option value="">Sin asignar</option>
-            {docentes.map((d) => (
-              <option key={d.id} value={d.id}>{d.nombre}</option>
-            ))}
-          </select>
-          <select name="diaSemana" required className={cellInput}>
-            {DIAS.map((d) => (
-              <option key={d.value} value={d.value}>{d.label}</option>
-            ))}
-          </select>
-          <input type="time" name="horaInicio" required className={cellInput} />
-          <input type="time" name="horaFin" required className={cellInput} />
-          <BotonGuardar
-            textoGuardado="✓ Agregado"
-            className="col-span-2 rounded-lg bg-[var(--color-green)] py-2 text-sm font-bold text-white disabled:opacity-60 md:col-span-6"
-          >
-            Agregar bloque
-          </BotonGuardar>
-        </form>
-      </div>
+      <FormNuevoBloque
+        anioSeleccionado={anioSeleccionado}
+        aulas={aulas.map((a) => ({ id: a.id, nombre: a.nombre, nivelNombre: a.nivel.nombre }))}
+        materias={materias.map((m) => ({ id: m.id, nombre: m.nombre, grupo: etiquetaMateria(m) }))}
+        docentes={docentes}
+        dias={DIAS}
+        nivelesDeAulas={nivelesDeAulas}
+        nivelesDeMaterias={nivelesDeMaterias}
+      />
     </>
   );
 }
@@ -537,8 +439,6 @@ async function VistaGrid({
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm outline-none focus:border-[var(--color-green)]";
-const cellInput =
-  "w-full rounded border border-[var(--color-line)] px-2 py-1 text-sm outline-none focus:border-[var(--color-green)]";
 
 // ---------------------------------------------------------------------------
 // VISTA DE SOLO LECTURA — para quien solo tiene "horarios:ver" (docentes):
