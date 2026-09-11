@@ -1136,6 +1136,38 @@ export async function actualizarEstudiante(formData: FormData) {
   revalidatePath("/admin/estudiantes");
 }
 
+// Actualización rápida de un solo campo desde la lista de estudiantes (no
+// desde el perfil completo) — evita tener que abrir cada expediente solo
+// para cargar el número de matrícula MINERD. Devuelve { error } en vez de
+// lanzar throw para que el mensaje (ej. matrícula duplicada) se muestre en
+// la propia fila sin tumbar el resto de la lista.
+export type EstadoMinerd = { error: string | null };
+
+export async function actualizarMatriculaMinerd(
+  _estadoPrevio: EstadoMinerd,
+  formData: FormData
+): Promise<EstadoMinerd> {
+  try {
+    await requierePermiso("estudiantes", "editar");
+    const estudianteId = String(formData.get("estudianteId"));
+    const valor = String(formData.get("numeroMatriculaMinerd") || "").trim() || null;
+
+    await prisma.estudiante.update({
+      where: { id: estudianteId },
+      data: { numeroMatriculaMinerd: valor },
+    });
+
+    revalidatePath("/admin/estudiantes");
+    revalidatePath(`/admin/estudiantes/${estudianteId}`);
+    return { error: null };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { error: "Ese número de matrícula MINERD ya está asignado a otro estudiante." };
+    }
+    return { error: error instanceof Error ? error.message : "Ocurrió un error inesperado." };
+  }
+}
+
 export async function actualizarTutor(formData: FormData) {
   await requierePermiso("padres", "editar");
   const tutorId = String(formData.get("tutorId"));

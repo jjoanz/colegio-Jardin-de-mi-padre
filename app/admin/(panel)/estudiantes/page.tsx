@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { CeldaMinerd } from "@/components/estudiantes/CeldaMinerd";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,9 @@ export default async function EstudiantesPage() {
   const session = await auth();
   const role = (session?.user as { role?: string } | undefined)?.role;
   const userId = (session?.user as { id?: string } | undefined)?.id;
+  const puedeEditar = ((session?.user as { permisos?: string[] } | undefined)?.permisos ?? []).includes(
+    "estudiantes:editar"
+  );
 
   // Si es Profesor, solo ve a los estudiantes matriculados (activos) en las
   // aulas donde él es el docente asignado. Cualquier otro rol (ADMIN,
@@ -59,6 +63,7 @@ export default async function EstudiantesPage() {
               <th className="px-4 py-3">Padre/Madre/Tutor principal</th>
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Balance</th>
+              <th className="px-4 py-3">Matrícula MINERD</th>
             </tr>
           </thead>
           <tbody>
@@ -95,12 +100,21 @@ export default async function EstudiantesPage() {
                       RD$ {balance.toLocaleString("es-DO", { minimumFractionDigits: 2 })}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    {puedeEditar ? (
+                      <CeldaMinerd estudianteId={e.id} valorActual={e.numeroMatriculaMinerd} />
+                    ) : (
+                      <span className="font-mono text-xs text-[var(--color-ink-soft)]">
+                        {e.numeroMatriculaMinerd || "—"}
+                      </span>
+                    )}
+                  </td>
                 </tr>
               );
             })}
             {estudiantes.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-[var(--color-ink-soft)]">
+                <td colSpan={7} className="px-4 py-8 text-center text-[var(--color-ink-soft)]">
                   {aulaIdsPermitidas
                     ? "Aún no tienes estudiantes matriculados en tus aulas asignadas."
                     : "Aún no hay estudiantes registrados. Aprueba una solicitud de inscripción para crear el primero."}
