@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { IconBook, IconStar, IconClock, IconLeaf } from "@/components/Icons";
+import { montoEfectivoCargo } from "@/lib/ajustes";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +13,7 @@ export default async function DashboardPage() {
       prisma.cargo.count({ where: { estado: "VENCIDO" } }),
       prisma.cargo.findMany({
         where: { estado: { not: "ANULADO" } },
-        include: { pagos: true },
+        include: { pagos: true, ajustes: true },
       }),
       prisma.pago.findMany({
         where: { fechaPago: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } },
@@ -19,7 +21,7 @@ export default async function DashboardPage() {
     ]);
 
   // --- Balance financiero del colegio (todos los estudiantes juntos) ---
-  const totalFacturado = cargosActivos.reduce((s, c) => s + Number(c.monto), 0);
+  const totalFacturado = cargosActivos.reduce((s, c) => s + montoEfectivoCargo(c), 0);
   const totalCobrado = cargosActivos.reduce(
     (s, c) => s + c.pagos.reduce((s2, p) => s2 + Number(p.monto), 0),
     0
@@ -62,12 +64,22 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <h2 className="mt-10 font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--color-ink)]">
-        Balance financiero del colegio
-      </h2>
-      <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
-        Suma de todos los estudiantes juntos, en tiempo real.
-      </p>
+      <div className="mt-10 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] text-xl font-semibold text-[var(--color-ink)]">
+            Balance financiero del colegio
+          </h2>
+          <p className="mt-1 text-sm text-[var(--color-ink-soft)]">
+            Suma de todos los estudiantes juntos, en tiempo real.
+          </p>
+        </div>
+        <Link
+          href="/admin/anios-escolares"
+          className="rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm font-bold text-[var(--color-ink)] hover:bg-[var(--color-paper-dark)]"
+        >
+          Ver por período académico →
+        </Link>
+      </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
         <div className="rounded-2xl border border-[var(--color-line)] bg-white p-5">

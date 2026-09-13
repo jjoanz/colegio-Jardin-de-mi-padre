@@ -20,6 +20,10 @@ const MODULOS = [
   { key: "actividades", label: "Actividades y campamentos" },
   { key: "especiales", label: "Especiales y promociones" },
   { key: "cargos", label: "Cargos" },
+  {
+    key: "cierres_periodo",
+    label: "Cierres de períodos (ver=consultar/exportar, crear=cerrar, editar=ajustes, eliminar=reabrir)",
+  },
   { key: "pagos", label: "Caja de Cobro" },
   { key: "facturas", label: "Facturas" },
   { key: "usuarios", label: "Usuarios" },

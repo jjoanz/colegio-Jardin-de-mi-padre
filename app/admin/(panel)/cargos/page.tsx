@@ -6,10 +6,10 @@ import { AplicarCostoAdicional } from "@/components/AplicarCostoAdicional";
 export const dynamic = "force-dynamic";
 
 export default async function CargosPage() {
-  const [cargos, estudiantes, especiales, costosAdicionales] = await Promise.all([
+  const [cargos, estudiantes, especiales, costosAdicionales, aniosEscolares] = await Promise.all([
     prisma.cargo.findMany({
       orderBy: { fechaEmision: "desc" },
-      include: { estudiante: true, pagos: true },
+      include: { estudiante: true, pagos: true, anioEscolar: true },
     }),
     prisma.estudiante.findMany({ orderBy: { nombre: "asc" } }),
     prisma.especial.findMany({ where: { activo: true } }),
@@ -18,7 +18,9 @@ export default async function CargosPage() {
       include: { grado: { include: { nivel: true } } },
       orderBy: { nombre: "asc" },
     }),
+    prisma.anioEscolar.findMany({ orderBy: { fechaInicio: "desc" } }),
   ]);
+  const anioActivoId = aniosEscolares.find((a) => a.activo)?.id ?? aniosEscolares[0]?.id ?? "";
 
   return (
     <div>
@@ -33,7 +35,8 @@ export default async function CargosPage() {
       <div className="mt-8 grid gap-8 md:grid-cols-[1fr_320px]">
         <div className="space-y-3">
           {cargos.map((c) => {
-            const editable = c.pagos.length === 0 && c.estado !== "ANULADO";
+            const periodoCerrado = c.anioEscolar?.estadoCierre === "CERRADO";
+            const editable = c.pagos.length === 0 && c.estado !== "ANULADO" && !periodoCerrado;
             return (
               <details key={c.id} className="group overflow-hidden rounded-2xl border border-[var(--color-line)] bg-white">
                 <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5">
@@ -41,9 +44,17 @@ export default async function CargosPage() {
                     <p className="font-semibold text-[var(--color-ink)]">
                       {c.estudiante.nombre} {c.estudiante.apellido}
                     </p>
-                    <p className="text-xs text-[var(--color-ink-soft)]">{c.descripcion}</p>
+                    <p className="text-xs text-[var(--color-ink-soft)]">
+                      {c.descripcion}
+                      {c.anioEscolar && ` · ${c.anioEscolar.nombre}`}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
+                    {periodoCerrado && (
+                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                        período cerrado
+                      </span>
+                    )}
                     <span className="font-mono text-sm">
                       RD$ {Number(c.monto).toLocaleString("es-DO", { minimumFractionDigits: 2 })}
                     </span>
@@ -84,7 +95,11 @@ export default async function CargosPage() {
                   </div>
                 ) : (
                   <p className="border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 text-xs text-[var(--color-ink-soft)]">
-                    {c.estado === "ANULADO" ? "Este cargo está anulado." : "Ya tiene pagos registrados — no se puede editar ni anular."}
+                    {c.estado === "ANULADO"
+                      ? "Este cargo está anulado."
+                      : periodoCerrado
+                      ? "El período de este cargo está cerrado — usa un ajuste contable para corregirlo."
+                      : "Ya tiene pagos registrados — no se puede editar ni anular."}
                   </p>
                 )}
               </details>
@@ -114,6 +129,14 @@ export default async function CargosPage() {
             <option value="ACTIVIDAD">Actividad</option>
             <option value="CAMPAMENTO">Campamento</option>
             <option value="OTRO">Otro</option>
+          </select>
+          <select name="anioEscolarId" defaultValue={anioActivoId} className={inputClass}>
+            <option value="">Sin período asignado</option>
+            {aniosEscolares.map((a) => (
+              <option key={a.id} value={a.id} disabled={a.estadoCierre === "CERRADO"}>
+                {a.nombre} {a.estadoCierre === "CERRADO" ? "(cerrado)" : ""}
+              </option>
+            ))}
           </select>
           <AplicarCostoAdicional
             costos={costosAdicionales.map((c) => ({

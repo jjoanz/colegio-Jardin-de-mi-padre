@@ -7,6 +7,7 @@ import { generarCargosPendientesAhora } from "@/lib/generacion-cargos";
 import { notificarResultadoSolicitud, notificarReciboPago, notificarAccesoPortal } from "@/lib/notificaciones";
 import { otorgarAccesoTutor } from "@/lib/portal-acceso";
 import { crearPagoYFactura } from "@/lib/pagos";
+import { montoEfectivoCargo } from "@/lib/ajustes";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import {
@@ -586,34 +587,58 @@ export async function actualizarEspecial(formData: FormData) {
 
 export async function crearCargo(formData: FormData) {
   await requierePermiso("cargos", "crear");
+  const monto = Number(formData.get("monto"));
+  if (!(monto > 0)) {
+    throw new Error("El monto del cargo debe ser mayor a 0.");
+  }
+  const anioEscolarId = String(formData.get("anioEscolarId") || "") || null;
+  if (anioEscolarId) {
+    const anioEscolar = await prisma.anioEscolar.findUniqueOrThrow({ where: { id: anioEscolarId } });
+    if (anioEscolar.estadoCierre === "CERRADO") {
+      throw new Error("No se pueden crear cargos nuevos en un período cerrado. Reábrelo primero si es necesario.");
+    }
+  }
   await prisma.cargo.create({
     data: {
       estudianteId: String(formData.get("estudianteId")),
       concepto: String(formData.get("concepto")) as ConceptoCargo,
       descripcion: String(formData.get("descripcion")),
-      monto: Number(formData.get("monto")),
+      monto,
       especialId: formData.get("especialId") ? String(formData.get("especialId")) : null,
+      anioEscolarId,
     },
   });
   revalidatePath("/admin/cargos");
+  if (anioEscolarId) revalidatePath(`/admin/anios-escolares/${anioEscolarId}`);
 }
 
-// Un cargo solo se puede editar o anular si todavía NO tiene ningún pago registrado.
-// Una vez recibió un pago (y por lo tanto ya generó una factura), se conserva tal cual
-// por integridad contable — para corregirlo se anula y se crea uno nuevo.
+// Un cargo solo se puede editar o anular si todavía NO tiene ningún pago registrado
+// y su período no está cerrado. Una vez recibió un pago (y por lo tanto ya generó
+// una factura), o el período cerró, se conserva tal cual por integridad contable —
+// para corregirlo se usa un ajuste contable (ver lib/actions-periodos.ts).
 export async function actualizarCargo(formData: FormData) {
   await requierePermiso("cargos", "editar");
   const cargoId = String(formData.get("cargoId"));
-  const cargo = await prisma.cargo.findUniqueOrThrow({ where: { id: cargoId }, include: { pagos: true } });
+  const cargo = await prisma.cargo.findUniqueOrThrow({
+    where: { id: cargoId },
+    include: { pagos: true, anioEscolar: true },
+  });
   if (cargo.pagos.length > 0) {
     throw new Error("Este cargo ya tiene pagos registrados y no se puede editar. Anúlalo y crea uno nuevo si necesitas corregirlo.");
+  }
+  if (cargo.anioEscolar?.estadoCierre === "CERRADO") {
+    throw new Error("El período de este cargo está cerrado. Usa un ajuste contable para corregirlo, o reabre el período.");
+  }
+  const monto = Number(formData.get("monto"));
+  if (!(monto > 0)) {
+    throw new Error("El monto del cargo debe ser mayor a 0.");
   }
   await prisma.cargo.update({
     where: { id: cargoId },
     data: {
       concepto: String(formData.get("concepto")) as ConceptoCargo,
       descripcion: String(formData.get("descripcion")),
-      monto: Number(formData.get("monto")),
+      monto,
       especialId: formData.get("especialId") ? String(formData.get("especialId")) : null,
     },
   });
@@ -623,9 +648,15 @@ export async function actualizarCargo(formData: FormData) {
 export async function anularCargo(formData: FormData) {
   await requierePermiso("cargos", "editar");
   const cargoId = String(formData.get("cargoId"));
-  const cargo = await prisma.cargo.findUniqueOrThrow({ where: { id: cargoId }, include: { pagos: true } });
+  const cargo = await prisma.cargo.findUniqueOrThrow({
+    where: { id: cargoId },
+    include: { pagos: true, anioEscolar: true },
+  });
   if (cargo.pagos.length > 0) {
     throw new Error("Este cargo ya tiene pagos registrados y no se puede anular.");
+  }
+  if (cargo.anioEscolar?.estadoCierre === "CERRADO") {
+    throw new Error("El período de este cargo está cerrado y no se puede anular. Reabre el período si es necesario.");
   }
   await prisma.cargo.update({ where: { id: cargoId }, data: { estado: "ANULADO" } });
   revalidatePath("/admin/cargos");
@@ -660,11 +691,17 @@ function armarHijoConCargos(est: {
   nombre: string;
   apellido: string;
   numeroExpediente: string;
-  cargos: { id: string; descripcion: string; monto: Prisma.Decimal; pagos: { monto: Prisma.Decimal }[] }[];
+  cargos: {
+    id: string;
+    descripcion: string;
+    monto: Prisma.Decimal;
+    pagos: { monto: Prisma.Decimal }[];
+    ajustes: { monto: Prisma.Decimal }[];
+  }[];
 }): HijoConCargos {
   const cargosPendientes = est.cargos.map((c) => {
     const totalPagado = c.pagos.reduce((s, p) => s + Number(p.monto), 0);
-    return { id: c.id, descripcion: c.descripcion, pendiente: Number(c.monto) - totalPagado };
+    return { id: c.id, descripcion: c.descripcion, pendiente: montoEfectivoCargo(c) - totalPagado };
   });
   return {
     id: est.id,
@@ -685,7 +722,7 @@ async function armarGrupoDesdeTutor(tutorId: string): Promise<GrupoCobro> {
             include: {
               cargos: {
                 where: { estado: { in: ["PENDIENTE", "PARCIAL"] } },
-                include: { pagos: true },
+                include: { pagos: true, ajustes: true },
               },
             },
           },
@@ -712,7 +749,7 @@ async function armarGrupoDesdeEstudiante(estudianteId: string): Promise<GrupoCob
 
   const est = await prisma.estudiante.findUniqueOrThrow({
     where: { id: estudianteId },
-    include: { cargos: { where: { estado: { in: ["PENDIENTE", "PARCIAL"] } }, include: { pagos: true } } },
+    include: { cargos: { where: { estado: { in: ["PENDIENTE", "PARCIAL"] } }, include: { pagos: true, ajustes: true } } },
   });
   return { hijos: [armarHijoConCargos(est)] };
 }
@@ -817,9 +854,9 @@ export async function registrarPagosMultiples(formData: FormData) {
 
   await prisma.$transaction(async (tx) => {
     for (const cargoId of cargoIds) {
-      const cargo = await tx.cargo.findUniqueOrThrow({ where: { id: cargoId }, include: { pagos: true } });
+      const cargo = await tx.cargo.findUniqueOrThrow({ where: { id: cargoId }, include: { pagos: true, ajustes: true } });
       const totalPagadoAntes = cargo.pagos.reduce((s, p) => s + Number(p.monto), 0);
-      const pendienteReal = Number(cargo.monto) - totalPagadoAntes;
+      const pendienteReal = montoEfectivoCargo(cargo) - totalPagadoAntes;
       if (pendienteReal <= 0) continue;
 
       const montoSolicitado = Number(formData.get(`monto-${cargoId}`)) || 0;

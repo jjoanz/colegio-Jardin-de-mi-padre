@@ -74,6 +74,10 @@ async function generarCargosPendientesInterno(): Promise<number> {
   );
 
   for (const m of matriculas) {
+    // Un período cerrado no debe seguir generando cargos nuevos en silencio —
+    // eso es exactamente lo que el cierre contable está protegiendo.
+    if (m.anioEscolar.estadoCierre === "CERRADO") continue;
+
     // Si el aula tiene un grado asignado, su precio manda sobre el del nivel.
     const precios = m.aula.grado ?? m.aula.nivel;
     const colegiaturaAnual = Number(precios.colegiaturaAnual);

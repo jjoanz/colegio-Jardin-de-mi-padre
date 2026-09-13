@@ -33,6 +33,7 @@ export const RUTA_MODULO: Array<{ prefix: string; modulo: string }> = [
   { prefix: "/admin/poa-proyectos", modulo: "documentos_institucionales" },
   { prefix: "/admin/becas", modulo: "becas" },
   { prefix: "/admin/facturacion-automatica", modulo: "cargos" },
+  { prefix: "/admin/cierres-periodo", modulo: "cierres_periodo" },
 ];
 
 // Devuelve el módulo correspondiente a una ruta, usando el prefijo más

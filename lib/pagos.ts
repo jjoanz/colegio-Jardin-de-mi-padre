@@ -1,4 +1,5 @@
 import { Prisma, EstadoCargo, TipoPago, MetodoPago } from "@prisma/client";
+import { montoEfectivoCargo } from "@/lib/ajustes";
 
 // ---------------------------------------------------------------------------
 // LÓGICA COMPARTIDA DE REGISTRO DE PAGO + FACTURA
@@ -28,15 +29,28 @@ export async function crearPagoYFactura(
 ) {
   const { cargoId, cuentaId = null, monto, metodo, referencia = "", notas = "", registradoPorId } = params;
 
+  if (!(monto > 0)) {
+    throw new Error("El monto del pago debe ser mayor a 0.");
+  }
+
   const cargoAntes = await tx.cargo.findUniqueOrThrow({
     where: { id: cargoId },
-    include: { pagos: true },
+    include: { pagos: true, ajustes: true, anioEscolar: true },
   });
+  if (cargoAntes.anioEscolar?.estadoCierre === "CERRADO") {
+    throw new Error(
+      "El período de este cargo está cerrado. Registra el cobro mediante un ajuste contable, o reabre el período."
+    );
+  }
+
   const totalPagadoAntes = cargoAntes.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
   const totalPagadoDespues = totalPagadoAntes + monto;
+  // El saldo real incluye los ajustes contables (descuentos/recargos), nunca
+  // solo Cargo.monto — un descuento debe poder dejar el cargo en PAGADO.
+  const montoEfectivo = montoEfectivoCargo(cargoAntes);
 
   // Si este pago completa el 100% del cargo, es "pago total"; si deja saldo, es "abono".
-  const tipoPago: TipoPago = totalPagadoDespues >= Number(cargoAntes.monto) ? "PAGO_TOTAL" : "ABONO";
+  const tipoPago: TipoPago = totalPagadoDespues >= montoEfectivo ? "PAGO_TOTAL" : "ABONO";
 
   const pago = await tx.pago.create({
     data: {
@@ -52,7 +66,7 @@ export async function crearPagoYFactura(
   });
 
   const nuevoEstado: EstadoCargo =
-    totalPagadoDespues >= Number(cargoAntes.monto)
+    totalPagadoDespues >= montoEfectivo
       ? EstadoCargo.PAGADO
       : totalPagadoDespues > 0
       ? EstadoCargo.PARCIAL

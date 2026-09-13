@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { CeldaMinerd } from "@/components/estudiantes/CeldaMinerd";
+import { montoEfectivoCargo } from "@/lib/ajustes";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function EstudiantesPage() {
     include: {
       nivel: true,
       tutores: { include: { tutor: true } },
-      cargos: { include: { pagos: true } },
+      cargos: { include: { pagos: true, ajustes: true } },
     },
   });
 
@@ -68,7 +69,7 @@ export default async function EstudiantesPage() {
           </thead>
           <tbody>
             {estudiantes.map((e) => {
-              const totalCargos = e.cargos.reduce((s, c) => s + Number(c.monto), 0);
+              const totalCargos = e.cargos.reduce((s, c) => s + montoEfectivoCargo(c), 0);
               const totalPagado = e.cargos.reduce(
                 (s, c) => s + c.pagos.reduce((s2, p) => s2 + Number(p.monto), 0),
                 0

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { montoEfectivoCargo, sumaAjustes } from "@/lib/ajustes";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function EstadoCuentaPage({ params }: { params: Promise<{ i
     where: { id },
     include: {
       cargos: {
-        include: { pagos: true, anioEscolar: true, beca: true },
+        include: { pagos: true, anioEscolar: true, beca: true, ajustes: true },
         orderBy: [{ anioEscolarId: "desc" }, { numeroCuota: "asc" }, { fechaEmision: "asc" }],
       },
     },
@@ -50,7 +51,7 @@ export default async function EstadoCuentaPage({ params }: { params: Promise<{ i
 
       <div className="mt-8 space-y-6">
         {Array.from(grupos.values()).map((grupo) => {
-          const totalCargos = grupo.cargos.reduce((s, c) => s + Number(c.monto), 0);
+          const totalCargos = grupo.cargos.reduce((s, c) => s + montoEfectivoCargo(c), 0);
           const totalPagado = grupo.cargos.reduce(
             (s, c) => s + c.pagos.reduce((s2, p) => s2 + Number(p.monto), 0),
             0
@@ -86,7 +87,8 @@ export default async function EstadoCuentaPage({ params }: { params: Promise<{ i
               <div className="mt-4 space-y-2">
                 {grupo.cargos.map((c) => {
                   const pagadoCargo = c.pagos.reduce((s, p) => s + Number(p.monto), 0);
-                  const saldoCargo = Number(c.monto) - pagadoCargo;
+                  const ajustesCargo = sumaAjustes(c.ajustes);
+                  const saldoCargo = montoEfectivoCargo(c) - pagadoCargo;
                   return (
                     <div
                       key={c.id}
@@ -100,6 +102,8 @@ export default async function EstadoCuentaPage({ params }: { params: Promise<{ i
                         <p className="text-xs text-[var(--color-ink-soft)]">
                           {c.beca && `Beca ${Number(c.beca.porcentaje)}% aplicada · `}
                           Vence: {c.fechaVencimiento ? c.fechaVencimiento.toLocaleDateString("es-DO") : "—"}
+                          {ajustesCargo !== 0 &&
+                            ` · Ajuste: ${ajustesCargo > 0 ? "+" : "-"}RD$ ${Math.abs(ajustesCargo).toLocaleString("es-DO", { minimumFractionDigits: 2 })}`}
                         </p>
                       </div>
                       <div className="text-right">

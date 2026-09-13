@@ -86,6 +86,9 @@ model AdminUser {
   documentosInstitucionalesSubidos DocumentoInstitucional[] @relation("DocumentosInstitucionalesSubidoPor")
   becasAsignadas Beca[] @relation("BecasAsignadasPor")
   pagosReportadosRevisados PagoReportado[] @relation("PagosReportadosRevisadosPor")
+  cierresPeriodoRealizados CierrePeriodo[] @relation("CierrePeriodoPor")
+  ajustesCargoRegistrados  AjusteCargo[]   @relation("AjusteCargoPor")
+  registrosAuditoria       RegistroAuditoria[] @relation("AuditoriaPor")
 }
 
 // ---------------------------------------------------------------------------
@@ -786,6 +789,7 @@ model Cargo {
   beca          Beca?         @relation(fields: [becaId], references: [id])
   pagos         Pago[]
   pagosReportados PagoReportado[]
+  ajustes       AjusteCargo[]
 
   @@index([estudianteId, estado])
   @@index([estado])
@@ -1212,18 +1216,117 @@ enum Tanda {
   EXTENDIDA
 }
 
+// Estado de CIERRE FINANCIERO del período — independiente de "activo", que solo
+// controla cuál año escolar aparece preseleccionado para matricular/horarios.
+// Un año puede estar "activo" y a la vez CERRADO contablemente (ej. se sigue
+// dando clase pero ya se hizo el corte de caja de un trimestre).
+enum EstadoCierrePeriodo {
+  ABIERTO
+  CERRADO
+}
+
 model AnioEscolar {
-  id          String   @id @default(cuid())
-  nombre      String   @unique // "2026-2027"
-  fechaInicio DateTime
-  fechaFin    DateTime
-  activo      Boolean  @default(true)
+  id            String              @id @default(cuid())
+  nombre        String              @unique // "2026-2027"
+  fechaInicio   DateTime
+  fechaFin      DateTime
+  activo        Boolean             @default(true)
+  estadoCierre  EstadoCierrePeriodo @default(ABIERTO)
 
   aulas       Aula[]
   matriculas  Matricula[]
   bloquesHorario BloqueHorario[]
   documentosInstitucionales DocumentoInstitucional[]
   cargos      Cargo[]
+  cierres     CierrePeriodo[]
+
+  @@index([estadoCierre])
+}
+
+// ---------------------------------------------------------------------------
+// CIERRE CONTABLE DE PERÍODO — bitácora append-only: cada cierre y cada
+// reapertura queda como su propia fila, nunca se sobrescribe la anterior, así
+// se conserva el histórico completo aunque un período se reabra varias veces.
+// ---------------------------------------------------------------------------
+
+enum TipoEventoCierre {
+  CIERRE
+  REAPERTURA
+}
+
+model CierrePeriodo {
+  id                  String           @id @default(cuid())
+  anioEscolarId       String
+  tipo                TipoEventoCierre
+  fecha               DateTime         @default(now())
+  usuarioId           String
+  // Snapshot financiero al momento del evento — se calcula una vez y se
+  // congela aquí; el reporte de un cierre pasado no debe cambiar aunque
+  // después se reabra el período y se sigan registrando pagos.
+  totalCargos         Decimal          @db.Decimal(12, 2)
+  totalPagado         Decimal          @db.Decimal(12, 2)
+  totalPendiente      Decimal          @db.Decimal(12, 2)
+  totalEstudiantes    Int
+  estudiantesPagados  Int
+  estudiantesParcial  Int
+  estudiantesConDeuda Int
+  motivo              String? // observaciones del cierre, u obligatorio en reapertura
+
+  anioEscolar AnioEscolar @relation(fields: [anioEscolarId], references: [id], onDelete: Cascade)
+  usuario     AdminUser   @relation("CierrePeriodoPor", fields: [usuarioId], references: [id])
+
+  @@index([anioEscolarId, fecha])
+}
+
+// ---------------------------------------------------------------------------
+// AJUSTES CONTABLES — el único mecanismo permitido para corregir un cargo
+// después de que su período cerró. Nunca se sobrescribe Cargo.monto: el saldo
+// real de un cargo es monto + suma(ajustes).
+// ---------------------------------------------------------------------------
+
+enum TipoAjuste {
+  DESCUENTO   // reduce el saldo — monto se guarda negativo
+  RECARGO     // aumenta el saldo — monto se guarda positivo
+  CORRECCION  // corrige un error de captura — puede ser + o -
+}
+
+model AjusteCargo {
+  id         String     @id @default(cuid())
+  cargoId    String
+  tipo       TipoAjuste
+  monto      Decimal    @db.Decimal(10, 2) // + o - según tipo
+  motivo     String
+  referencia String?
+  usuarioId  String
+  creadoEn   DateTime   @default(now())
+
+  cargo   Cargo     @relation(fields: [cargoId], references: [id], onDelete: Restrict)
+  usuario AdminUser @relation("AjusteCargoPor", fields: [usuarioId], references: [id])
+
+  @@index([cargoId])
+}
+
+// ---------------------------------------------------------------------------
+// AUDITORÍA FINANCIERA — genérica y reutilizable a propósito: no existía
+// ningún sistema de auditoría antes, así que esta tabla queda lista para
+// registrar trazabilidad de cualquier módulo futuro, no solo períodos.
+// ---------------------------------------------------------------------------
+
+model RegistroAuditoria {
+  id            String   @id @default(cuid())
+  entidad       String // "AnioEscolar", "Cargo", "Pago", etc.
+  entidadId     String
+  accion        String // "CIERRE", "REAPERTURA", "AJUSTE", etc.
+  usuarioId     String?
+  valorAnterior Json?
+  valorNuevo    Json?
+  motivo        String?
+  creadoEn      DateTime @default(now())
+
+  usuario AdminUser? @relation("AuditoriaPor", fields: [usuarioId], references: [id])
+
+  @@index([entidad, entidadId])
+  @@index([creadoEn])
 }
 
 model Aula {
