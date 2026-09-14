@@ -455,7 +455,7 @@ async function VistaAjustes({ anioEscolarId, puedeAjustar }: { anioEscolarId: st
             className="mt-3 grid gap-3 rounded-2xl border border-[var(--color-line)] bg-white p-5 md:grid-cols-2"
           >
             <select name="cargoId" required className={`md:col-span-2 ${inputClass}`}>
-              <option value="">Seleccionar cargo…</option>
+              <option value="">Seleccionar cuenta por cobrar…</option>
               {cargos.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.estudiante.nombre} {c.estudiante.apellido} — {c.descripcion} (RD${" "}

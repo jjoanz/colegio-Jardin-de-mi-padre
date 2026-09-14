@@ -86,7 +86,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         "Total pagado": c.pagos.reduce((s, p) => s + Number(p.monto), 0),
       }))
     ),
-    "Cargos"
+    "Cuentas por Cobrar"
   );
 
   const pagos = cargos.flatMap((c) =>

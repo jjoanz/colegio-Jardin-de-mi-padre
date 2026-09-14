@@ -25,11 +25,11 @@ export default async function CargosPage() {
   return (
     <div>
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-[var(--color-ink)]">
-        Cargos
+        Registro de Cuentas por Cobrar
       </h1>
       <p className="mt-1 text-[var(--color-ink-soft)]">
-        Inscripciones, mensualidades, cuido y actividades pendientes de cobro. Un cargo solo
-        se puede editar o anular mientras no tenga pagos registrados.
+        Inscripciones, mensualidades, cuido y actividades pendientes de cobro — cada uno es una
+        cuenta por cobrar. Un registro solo se puede editar o anular mientras no tenga pagos registrados.
       </p>
 
       <div className="mt-8 grid gap-8 md:grid-cols-[1fr_320px]">
@@ -89,16 +89,16 @@ export default async function CargosPage() {
                     <form action={anularCargo} className="mt-2">
                       <input type="hidden" name="cargoId" value={c.id} />
                       <BotonGuardar textoGuardado="✓ Anulado" className="text-xs font-bold text-red-600 disabled:opacity-60">
-                        Anular este cargo
+                        Anular este registro
                       </BotonGuardar>
                     </form>
                   </div>
                 ) : (
                   <p className="border-t border-[var(--color-line)] bg-[var(--color-paper-dark)] p-4 text-xs text-[var(--color-ink-soft)]">
                     {c.estado === "ANULADO"
-                      ? "Este cargo está anulado."
+                      ? "Este registro está anulado."
                       : periodoCerrado
-                      ? "El período de este cargo está cerrado — usa un ajuste contable para corregirlo."
+                      ? "El período de esta cuenta por cobrar está cerrado — usa un ajuste contable para corregirlo."
                       : "Ya tiene pagos registrados — no se puede editar ni anular."}
                   </p>
                 )}
@@ -107,14 +107,14 @@ export default async function CargosPage() {
           })}
           {cargos.length === 0 && (
             <p className="rounded-2xl border border-[var(--color-line)] bg-white p-8 text-center text-[var(--color-ink-soft)]">
-              Aún no hay cargos registrados.
+              Aún no hay cuentas por cobrar registradas.
             </p>
           )}
         </div>
 
         <form action={crearCargo} className="h-fit space-y-3 rounded-2xl border border-[var(--color-line)] bg-white p-5">
           <p className="text-xs font-bold uppercase tracking-wide text-[var(--color-green)]">
-            Nuevo cargo
+            Nueva cuenta por cobrar
           </p>
           <select name="estudianteId" required className={inputClass}>
             <option value="">Seleccionar estudiante…</option>
@@ -157,7 +157,7 @@ export default async function CargosPage() {
             textoGuardado="✓ Creado"
             className="w-full rounded-lg bg-[var(--color-green)] py-2.5 text-sm font-bold text-white disabled:opacity-60"
           >
-            Crear cargo
+            Registrar cuenta por cobrar
           </BotonGuardar>
         </form>
       </div>

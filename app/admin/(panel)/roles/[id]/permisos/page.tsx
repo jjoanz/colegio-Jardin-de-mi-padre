@@ -19,7 +19,7 @@ const MODULOS = [
   { key: "cuido", label: "Programas de cuido" },
   { key: "actividades", label: "Actividades y campamentos" },
   { key: "especiales", label: "Especiales y promociones" },
-  { key: "cargos", label: "Cargos" },
+  { key: "cargos", label: "Registro de Cuentas por Cobrar" },
   {
     key: "cierres_periodo",
     label: "Cierres de períodos (ver=consultar/exportar, crear=cerrar, editar=ajustes, eliminar=reabrir)",

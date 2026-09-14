@@ -27,7 +27,8 @@ const NAV = [
   { href: "/admin/publicaciones", label: "Publicaciones", grupo: "Administración" },
 
   // --- Financiero ---
-  { href: "/admin/cargos", label: "Cargos", grupo: "Financiero" },
+  { href: "/admin/cargos", label: "Registro de Cuentas por Cobrar", grupo: "Financiero" },
+  { href: "/admin/cierres-periodo", label: "Cierres de períodos", grupo: "Financiero" },
   { href: "/admin/facturacion-automatica", label: "Facturación automática", grupo: "Financiero" },
   { href: "/admin/pagos", label: "Caja de Cobro", grupo: "Financiero" },
   { href: "/admin/facturas", label: "Facturas", grupo: "Financiero" },

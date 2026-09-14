@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   const stats = [
     { label: "Solicitudes nuevas", value: solicitudesNuevas, icon: IconStar, color: "var(--color-gold)" },
     { label: "Estudiantes activos", value: estudiantesActivos, icon: IconLeaf, color: "var(--color-green)" },
-    { label: "Cargos vencidos", value: cargosVencidos, icon: IconClock, color: "#dc2626" },
+    { label: "Cuentas por cobrar vencidas", value: cargosVencidos, icon: IconClock, color: "#dc2626" },
   ];
 
   return (
