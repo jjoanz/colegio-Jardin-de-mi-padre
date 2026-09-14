@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { obtenerDatosPeriodo, type FilaEstudiantePeriodo } from "@/lib/periodos";
 import { cerrarPeriodo, reabrirPeriodo, crearAjusteCargo } from "@/lib/actions-periodos";
 import { BotonGuardar } from "@/components/BotonGuardar";
+import type { CierrePeriodo } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,17 @@ export default async function PeriodoDetallePage({
   const { resumen, filas } = await obtenerDatosPeriodo(id);
   const cerrado = anioEscolar.estadoCierre === "CERRADO";
   const porcentajeCobrado = resumen.totalCargos > 0 ? (resumen.totalPagado / resumen.totalCargos) * 100 : 0;
+
+  // Un período cerrado sigue cobrando cuentas por cobrar históricas — el
+  // resumen de arriba siempre es el saldo ACTUAL (en vivo). Para no perder de
+  // vista qué tan pendiente estaba el período al momento exacto del cierre,
+  // se muestra también la fotografía congelada de ese cierre más reciente.
+  const ultimoCierre = cerrado
+    ? await prisma.cierrePeriodo.findFirst({
+        where: { anioEscolarId: id, tipo: "CIERRE" },
+        orderBy: { fecha: "desc" },
+      })
+    : null;
 
   return (
     <div>
@@ -101,6 +113,7 @@ export default async function PeriodoDetallePage({
           cerrado={cerrado}
           puedeCerrar={puedeCerrar}
           puedeReabrir={puedeReabrir}
+          ultimoCierre={ultimoCierre}
         />
       )}
       {vista === "estudiantes" && <VistaEstudiantes filas={filas} q={sp.q ?? ""} />}
@@ -123,6 +136,7 @@ function VistaResumen({
   cerrado,
   puedeCerrar,
   puedeReabrir,
+  ultimoCierre,
 }: {
   anioEscolarId: string;
   resumen: Awaited<ReturnType<typeof obtenerDatosPeriodo>>["resumen"];
@@ -130,11 +144,16 @@ function VistaResumen({
   cerrado: boolean;
   puedeCerrar: boolean;
   puedeReabrir: boolean;
+  ultimoCierre: CierrePeriodo | null;
 }) {
+  const cobradoDespuesDelCierre = ultimoCierre
+    ? Math.round((resumen.totalPagado - Number(ultimoCierre.totalPagado)) * 100) / 100
+    : 0;
+
   return (
     <div className="mt-6">
       <h2 className="text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">
-        Resumen financiero
+        Resumen financiero {cerrado && <span className="normal-case text-[var(--color-ink-soft)]">(saldo actual, en vivo)</span>}
       </h2>
       <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
         <Tarjeta etiqueta="Facturado" valor={resumen.totalCargos} />
@@ -157,6 +176,28 @@ function VistaResumen({
           </div>
         </div>
       </div>
+
+      {cerrado && ultimoCierre && (
+        <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
+            Cuentas por cobrar históricas — al momento del cierre ({ultimoCierre.fecha.toLocaleDateString("es-DO")})
+          </p>
+          <p className="mt-1 text-xs text-[var(--color-ink-soft)]">
+            El período está cerrado, pero las cuentas por cobrar que quedaron pendientes se siguen pudiendo
+            cobrar sin reabrirlo. Esto compara lo congelado en el cierre contra el saldo actual.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <MiniDato etiqueta="Pendiente al cierre" valor={Number(ultimoCierre.totalPendiente)} />
+            <MiniDato etiqueta="Cobrado después del cierre" valor={cobradoDespuesDelCierre} destacar />
+            <MiniDato
+              etiqueta="Pendiente actual"
+              valor={resumen.totalPendiente}
+              destacar={resumen.totalPendiente > 0}
+            />
+            <MiniDato etiqueta="Estudiantes con deuda (al cierre)" valor={ultimoCierre.estudiantesConDeuda} moneda={false} />
+          </div>
+        </div>
+      )}
 
       <h2 className="mt-8 text-xs font-bold uppercase tracking-wide text-[var(--color-ink-soft)]">
         Estudiantes
@@ -243,6 +284,27 @@ function VistaResumen({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function MiniDato({
+  etiqueta,
+  valor,
+  moneda = true,
+  destacar = false,
+}: {
+  etiqueta: string;
+  valor: number;
+  moneda?: boolean;
+  destacar?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{etiqueta}</p>
+      <p className={`mt-1 font-mono text-sm font-bold ${destacar ? "text-[var(--color-ink)]" : "text-gray-500"}`}>
+        {moneda ? `RD$ ${valor.toLocaleString("es-DO", { minimumFractionDigits: 2 })}` : valor}
+      </p>
     </div>
   );
 }

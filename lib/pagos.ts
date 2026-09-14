@@ -33,15 +33,15 @@ export async function crearPagoYFactura(
     throw new Error("El monto del pago debe ser mayor a 0.");
   }
 
+  // El cierre de un período protege el CARGO histórico (su monto no se toca
+  // silenciosamente — ver actualizarCargo/anularCargo), pero NUNCA bloquea
+  // cobrar una cuenta por cobrar pendiente después del cierre: una deuda de
+  // un período cerrado sigue siendo cobrable sin tener que reabrirlo. El pago
+  // se aplica igual y AnioEscolar.estadoCierre no se toca en absoluto.
   const cargoAntes = await tx.cargo.findUniqueOrThrow({
     where: { id: cargoId },
-    include: { pagos: true, ajustes: true, anioEscolar: true },
+    include: { pagos: true, ajustes: true },
   });
-  if (cargoAntes.anioEscolar?.estadoCierre === "CERRADO") {
-    throw new Error(
-      "El período de este cargo está cerrado. Registra el cobro mediante un ajuste contable, o reabre el período."
-    );
-  }
 
   const totalPagadoAntes = cargoAntes.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
   const totalPagadoDespues = totalPagadoAntes + monto;
